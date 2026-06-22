@@ -95,15 +95,6 @@ export const defaultActivity: ActivityItem[] = [
     subtext: "Cash / Gcash",
     status: { label: "Success", tone: "positive" },
   },
-  {
-    icon: ArrowUpRight,
-    iconClassName: "text-[#00D084]",
-    name: "Jenalyn",
-    meta: "3 Units • Oct 24, 2024",
-    amount: "₱ 90.00",
-    subtext: "Cash / Gcash",
-    status: { label: "Success", tone: "positive" },
-  },
 ];
 
 export const defaultInventory: InventoryCardProps = {

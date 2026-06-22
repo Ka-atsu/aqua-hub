@@ -9,9 +9,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      {/* Changed to `flex flex-row` so the Sidebar and Main Content sit side-by-side.
-        Also using #F8FAFC (a crisp slate off-white) to match the Sequence dashboard base! 
-      */}
       <body className="min-h-screen bg-[#F8FAFC] text-[#0A4C5A] font-sans flex m-0">
         {/* 1. Render the Sidebar */}
         <Sidebar />
