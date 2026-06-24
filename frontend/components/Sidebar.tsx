@@ -1,4 +1,8 @@
+// components/Sidebar.tsx
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutGrid,
   ShoppingCart,
@@ -8,16 +12,23 @@ import {
   Settings,
   HelpCircle,
   ChevronDown,
+  UploadCloud,
 } from "lucide-react";
 
-export default function Sidebar() {
+// Idagdag ang prop na ito para makontrol ang floating modal mula sa labas
+interface SidebarProps {
+  onOpenUpload: () => void;
+}
+
+export default function Sidebar({ onOpenUpload }: SidebarProps) {
+  const pathname = usePathname();
+
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex-col justify-between hidden md:flex h-screen sticky top-0">
-      {/* TOP SECTION: Logo, Profile, and Navigation */}
+    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col justify-between md:flex h-screen sticky top-0">
       <div>
-        {/* User Profile Card (Clickable Dropdown Trigger) */}
+        {/* User Profile Card */}
         <div className="p-4 mb-6">
-          <button className="w-full p-3 border border-gray-100 rounded-xl flex items-center justify-between bg-white hover:bg-gray-50 shadow-sm cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-[#00D084] focus:border-transparent group">
+          <button className="w-full p-3 border border-gray-100 rounded-xl flex items-center justify-between bg-white hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#00D084] focus:border-transparent group">
             <div className="flex items-center gap-3">
               <img
                 src="/api/placeholder/32/32"
@@ -25,21 +36,18 @@ export default function Sidebar() {
                 className="w-8 h-8 rounded-full object-cover bg-gray-100"
               />
               <div className="text-left">
-                <p className="text-sm font-bold text-gray-900 group-hover:text-[#0A4C5A] transition-colors">
+                <p className="text-sm font-bold text-gray-900 group-hover:text-[#0A4C5A]">
                   Manager
                 </p>
-                <p className="text-[10px] text-gray-400 font-medium">
-                  aquahub@gmail.com
-                </p>
+                <p className="text-[10px] text-gray-400">aquahub@gmail.com</p>
               </div>
             </div>
-            <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-[#0A4C5A] transition-colors" />
+            <ChevronDown className="w-4 h-4 text-gray-400" />
           </button>
         </div>
 
-        {/* Navigation Links - Grouped by Relativity */}
+        {/* Links Navigation */}
         <nav className="px-4 space-y-6">
-          {/* GROUP 1: MAIN VIEWS */}
           <div>
             <p className="px-4 text-[11px] font-bold text-gray-400 tracking-widest mb-3 uppercase">
               Main
@@ -47,18 +55,24 @@ export default function Sidebar() {
             <div className="space-y-1">
               <Link
                 href="/"
-                className="flex items-center gap-3 px-4 py-2.5 text-gray-500 hover:bg-gray-50 rounded-lg font-semibold transition-colors text-sm"
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${pathname === "/" ? "bg-teal-50/50 text-[#0A4C5A] font-bold relative" : "text-gray-500 font-semibold hover:bg-gray-50"}`}
               >
-                <LayoutGrid className="w-4 h-4" strokeWidth={2.5} />
+                {pathname === "/" && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#00D084] rounded-r-full"></div>
+                )}
+                <LayoutGrid
+                  className="w-4 h-4 text-[#00D084]"
+                  strokeWidth={2.5}
+                />
                 Overview
               </Link>
-              {/* ACTIVE LINK: Analytics */}
               <Link
                 href="/analytics"
-                className="flex items-center gap-3 px-4 py-2.5 bg-teal-50/50 text-[#0A4C5A] rounded-lg font-bold transition-colors text-sm relative"
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${pathname === "/analytics" ? "bg-teal-50/50 text-[#0A4C5A] font-bold relative" : "text-gray-500 font-semibold hover:bg-gray-50"}`}
               >
-                {/* Active Green Indicator */}
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#00D084] rounded-r-full"></div>
+                {pathname === "/analytics" && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#00D084] rounded-r-full"></div>
+                )}
                 <LineChart
                   className="w-4 h-4 text-[#00D084]"
                   strokeWidth={2.5}
@@ -68,45 +82,32 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* GROUP 2: OPERATIONS */}
           <div>
             <p className="px-4 text-[11px] font-bold text-gray-400 tracking-widest mb-3 uppercase">
               Operations
             </p>
             <div className="space-y-1">
-              <Link
-                href="/orders"
-                className="flex items-center gap-3 px-4 py-2.5 text-gray-500 hover:bg-gray-50 rounded-lg font-semibold transition-colors text-sm"
+              <button
+                onClick={onOpenUpload}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-500 hover:bg-gray-50 hover:text-[#0A4C5A] rounded-lg font-semibold transition-colors text-sm text-left"
               >
-                <ShoppingCart className="w-4 h-4" strokeWidth={2.5} />
-                Orders
-              </Link>
-              <Link
-                href="/inventory"
-                className="flex items-center gap-3 px-4 py-2.5 text-gray-500 hover:bg-gray-50 rounded-lg font-semibold transition-colors text-sm"
-              >
-                <Boxes className="w-4 h-4" strokeWidth={2.5} />
-                Inventory
-              </Link>
-              <Link
-                href="/customers"
-                className="flex items-center gap-3 px-4 py-2.5 text-gray-500 hover:bg-gray-50 rounded-lg font-semibold transition-colors text-sm"
-              >
-                <Users className="w-4 h-4" strokeWidth={2.5} />
-                Customers
-              </Link>
+                <UploadCloud
+                  className="w-4 h-4 text-emerald-500"
+                  strokeWidth={2.5}
+                />
+                Logbook Uploader
+              </button>
             </div>
           </div>
         </nav>
       </div>
 
-      {/* BOTTOM SECTION: Settings, Help */}
       <div className="p-4 space-y-1">
-        <button className="flex items-center gap-3 px-4 py-2.5 w-full text-gray-500 hover:bg-gray-50 rounded-lg font-semibold transition-colors text-sm">
+        <button className="flex items-center gap-3 px-4 py-2.5 w-full text-gray-500 hover:bg-gray-50 rounded-lg font-semibold text-sm">
           <Settings className="w-4 h-4" strokeWidth={2.5} />
           Settings
         </button>
-        <button className="flex items-center gap-3 px-4 py-2.5 w-full text-gray-500 hover:bg-gray-50 rounded-lg font-semibold transition-colors text-sm mb-4">
+        <button className="flex items-center gap-3 px-4 py-2.5 w-full text-gray-500 hover:bg-gray-50 rounded-lg font-semibold text-sm mb-4">
           <HelpCircle className="w-4 h-4" strokeWidth={2.5} />
           Help
         </button>

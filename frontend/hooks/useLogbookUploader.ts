@@ -3,6 +3,34 @@ import { useState } from "react";
 import { ExtractedLog } from "@/types/logbook";
 import { supabase } from "@/lib/supabase";
 
+// BULLETPROOF HELPER FUNCTION (Nasa labas ng hook para hindi mag-recreate kada render)
+const formatToPostgresDate = (dateStr: string): string => {
+  if (!dateStr) return new Date().toISOString().split("T")[0]; // Fallback sa araw na ito
+
+  // Tanggalin ang invisible characters (\r) at palitan ang / ng -
+  const cleanDate = dateStr.replace(/\//g, "-").replace(/\r/g, "").trim();
+  const parts = cleanDate.split("-");
+
+  if (parts.length === 3) {
+    // FORMAT: DD-MM-YYYY (Hal. 15-12-2025)
+    if (parts[2].length === 4) {
+      const day = parts[0].padStart(2, "0");
+      const month = parts[1].padStart(2, "0");
+      const year = parts[2];
+      return `${year}-${month}-${day}`; // Nagiging 2025-12-15
+    }
+    // FORMAT: YYYY-MM-DD (Kung sakaling tama na ang format galing CSV)
+    else if (parts[0].length === 4) {
+      const year = parts[0];
+      const month = parts[1].padStart(2, "0");
+      const day = parts[2].padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+  }
+
+  return cleanDate;
+};
+
 export function useLogbookUploader() {
   const [file, setFile] = useState<File | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedLog[]>([]);
@@ -34,24 +62,20 @@ export function useLogbookUploader() {
           addressStr,
         ] = line.split(",");
 
-        const date = rawDate?.trim() || "";
-        const name = rawName?.trim().toUpperCase();
+        // SIGURADUHING WALANG \r SA MGA STRINGS
+        const date = rawDate?.replace(/\r/g, "").trim() || "";
+        const name = rawName?.replace(/\r/g, "").trim().toUpperCase();
         if (!name) continue;
 
         const newGallon = parseInt(newGallonStr) || 0;
         const oldGallon = parseInt(oldGallonStr) || 0;
-        const type = typeStr?.trim() || "Standard";
-        const address = addressStr?.trim() || "";
+        const type = typeStr?.replace(/\r/g, "").trim() || "Standard";
+        const address = addressStr?.replace(/\r/g, "").trim() || "";
 
-        // PINAKAMAHALAGANG UPDATE
-        // Kasama na ang DATE sa unique identifier string natin!
-        // Format: "2025-12-02_ELVIE_SLIM"
         const uniqueKey = `${date}_${name}_${type.toUpperCase()}`;
 
         if (mergedDataMap.has(uniqueKey)) {
-          // KUNG SAKTONG SAME ANG PETSA, PANGALAN, AT TYPE: Dito lang mag-o-auto-plus/merge!
           const existingRecord = mergedDataMap.get(uniqueKey)!;
-
           existingRecord.newGallon += newGallon;
           existingRecord.oldGallon += oldGallon;
 
@@ -61,10 +85,9 @@ export function useLogbookUploader() {
               : address;
           }
         } else {
-          // KUNG MAGKAIBA ANG DATE (kahit parehong Elvie at Slim): Lalabas ito bilang bagong hiwalay na row!
           mergedDataMap.set(uniqueKey, {
             id: currentId++,
-            date: date,
+            date: date, // Mananatili munang display format dito
             name: name,
             newGallon: newGallon,
             oldGallon: oldGallon,
@@ -90,32 +113,12 @@ export function useLogbookUploader() {
     );
   };
 
-  // 1. Magdagdag ng maliit na helper function sa itaas o sa loob ng hook file:
-  const formatToPostgresDate = (dateStr: string): string => {
-    if (!dateStr) return new Date().toISOString().split("T")[0]; // fallback kung walang date
-
-    // Palitan ang slashes (/) ng dashes (-) kung meron man
-    const cleanDate = dateStr.replace(/\//g, "-").trim();
-    const parts = cleanDate.split("-");
-
-    // Kung ang format ay DD-MM-YYYY (e.g., 15-12-2025)
-    if (parts.length === 3 && parts[0].length <= 2 && parts[2].length === 4) {
-      const day = parts[0].padStart(2, "0");
-      const month = parts[1].padStart(2, "0");
-      const year = parts[2];
-      return `${year}-${month}-${day}`; // Magiging 2025-12-15
-    }
-
-    // Kung naka YYYY-MM-DD na, ibalik lang ang orihinal
-    return cleanDate;
-  };
-
-  // 2. I-update ang handleSaveToDatabase map logic mo:
   const handleSaveToDatabase = async () => {
     if (extractedData.length === 0) return;
     setIsSaving(true);
 
     try {
+      // DITO NATIN I-FOFORMAT ANG PETSA BAGO IPASA KAY SUPABASE
       const recordsToInsert = extractedData.map((row) => ({
         transaction_date: formatToPostgresDate(row.date),
         name: row.name,

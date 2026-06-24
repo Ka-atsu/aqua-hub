@@ -6,10 +6,11 @@ import {
   ToolbarButtonProps,
 } from "../../types/dashboard";
 
-const TREND_TONE_CLASSES = {
+const TREND_TONE_CLASSES: Record<string, string> = {
   positive: "text-[#00D084]",
   negative: "text-red-400",
   warning: "text-orange-400",
+  neutral: "text-gray-500",
 };
 
 export function TrendBadge({
@@ -45,16 +46,20 @@ export function ToolbarButton({
   iconAfter: IconAfter,
   children,
   size = "md",
+  className = "", // Tanggapin ang external className para sa Active Filter kulay
+  ...props // Saluhin ang onClick at iba pang props
 }: ToolbarButtonProps) {
   const sizeClasses =
     size === "sm" ? "px-3 py-1.5 text-xs gap-2" : "px-4 py-2 text-sm gap-2";
+
   return (
     <button
       type="button"
-      className={`flex items-center border border-gray-200 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors ${sizeClasses}`}
+      className={`flex items-center border border-gray-200 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors ${sizeClasses} ${className}`}
+      {...props}
     >
       {Icon && <Icon className="w-4 h-4 text-gray-500" strokeWidth={2} />}
-      <span>{children}</span>
+      {children && <span>{children}</span>}
       {IconAfter && (
         <IconAfter className="w-4 h-4 text-gray-500" strokeWidth={2} />
       )}

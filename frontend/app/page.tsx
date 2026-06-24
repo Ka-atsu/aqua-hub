@@ -1,12 +1,293 @@
-export default function HomePage() {
+// app/dashboard/page.tsx
+"use client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useWaterDashboard } from "@/hooks/useWaterDashboard";
+import {
+  KpiCard,
+  DashboardPanel,
+  SplitBar,
+} from "@/components/dashboard/DashboardUI";
+import {
+  AlertCircle,
+  CheckCircle,
+  MoreHorizontal,
+  Plus,
+  Phone,
+  Check,
+  Search,
+  ChevronDown,
+} from "lucide-react";
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const { data, loading, dateRange, setDateRange, markReturned } =
+    useWaterDashboard();
+
+  if (loading || !data) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 p-8 text-gray-400 flex items-center justify-center font-medium">
+        Loading workspace...
+      </div>
+    );
+  }
+
+  const getInitials = (name: string) => name.substring(0, 2).toUpperCase();
+
   return (
-    <div className="w-full text-[#0F2942]">
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-[#F0F4F8]">
-        <h1 className="text-3xl font-bold mb-2">Welcome to Aqua Hub</h1>
-        <p className="text-[#5B7C99]">
-          Your dashboard is ready. Select an option from the top navigation menu
-          to manage your orders, customers, or inventory!
-        </p>
+    <div className="min-h-screen bg-gray-50/50 pb-12 text-gray-900">
+      <div className="p-6 md:p-8 space-y-8">
+        {/* PHASE 1: HEADER ACTIONS & DATE FILTER */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              What's happening with your station today.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Quick Actions */}
+            <button
+              onClick={() => router.push("/orders/new")}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:bg-gray-800 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> New Order
+            </button>
+            <button
+              onClick={() => router.push("/orders/new?walkin=true")}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Walk-In
+            </button>
+
+            {/* Date Filter */}
+            <div className="relative ml-2">
+              <select
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value)}
+                className="appearance-none bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold px-4 py-2 pr-10 cursor-pointer hover:bg-gray-50 outline-none"
+              >
+                <option value="today">Today</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-2.5 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* PHASE 1: CLICKABLE KPI GRID (Added Gallons) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <Link
+            href={data.revenueToday.href || "#"}
+            className="block group transition-transform hover:-translate-y-1"
+          >
+            <KpiCard metric={data.revenueToday} variant="dark" />
+          </Link>
+          <Link
+            href={data.txToday.href || "#"}
+            className="block group transition-transform hover:-translate-y-1"
+          >
+            <KpiCard metric={data.txToday} variant="white" />
+          </Link>
+          <Link
+            href={data.gallonsToday.href || "#"}
+            className="block group transition-transform hover:-translate-y-1"
+          >
+            <KpiCard metric={data.gallonsToday} variant="white" />
+          </Link>
+          <Link
+            href={data.activeCustomers.href || "#"}
+            className="block group transition-transform hover:-translate-y-1"
+          >
+            <KpiCard metric={data.activeCustomers} variant="white" />
+          </Link>
+          <Link
+            href={data.containersOut.href || "#"}
+            className="block group transition-transform hover:-translate-y-1"
+          >
+            <KpiCard metric={data.containersOut} variant="white" />
+          </Link>
+        </div>
+
+        {/* MAIN SPLIT LAYOUT */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* LEFT COLUMN */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* PHASE 2 & 5: ACTION CENTER & TODAY'S SUMMARY */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <DashboardPanel title="Action Center">
+                <div className="space-y-3 mt-2">
+                  {data.alerts.length === 0 ? (
+                    <p className="text-sm text-gray-400">
+                      You're all caught up!
+                    </p>
+                  ) : (
+                    data.alerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className={`flex items-start gap-3 p-3 rounded-xl border ${alert.type === "warning" ? "bg-orange-50 border-orange-100 text-orange-800" : "bg-emerald-50 border-emerald-100 text-emerald-800"}`}
+                      >
+                        {alert.type === "warning" ? (
+                          <AlertCircle className="w-5 h-5 text-orange-500 mt-0.5 shrink-0" />
+                        ) : (
+                          <CheckCircle className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
+                        )}
+                        <div>
+                          <p className="text-sm font-semibold">
+                            {alert.count ? `${alert.count} ` : ""}
+                            {alert.title}
+                          </p>
+                          <span className="text-xs opacity-80 cursor-pointer hover:underline">
+                            Take action &rarr;
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </DashboardPanel>
+
+              <DashboardPanel title="Today's Summary">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-6 mt-2">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase">
+                      Avg Sale
+                    </p>
+                    <p className="text-xl font-bold text-gray-900 mt-1">
+                      ₱{" "}
+                      {data.summary.avgSale.toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase">
+                      Volume (Gal)
+                    </p>
+                    <p className="text-xl font-bold text-gray-900 mt-1">
+                      {data.summary.gallons}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase">
+                      Walk-In / Del
+                    </p>
+                    <p className="text-lg font-bold text-gray-900 mt-1">
+                      {data.summary.walkIn}{" "}
+                      <span className="text-gray-300 font-normal">/</span>{" "}
+                      {data.summary.delivery}
+                    </p>
+                  </div>
+                </div>
+              </DashboardPanel>
+            </div>
+
+            {/* PHASE 3: TRANSACTION EXPERIENCE */}
+            <DashboardPanel title="Recent Transactions">
+              <div className="flex flex-col mt-2">
+                {/* Search Bar */}
+                <div className="mb-6 relative">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    placeholder="Search transactions..."
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+
+                <div className="grid grid-cols-12 gap-4 pb-4 border-b border-gray-100 text-xs font-semibold text-gray-400">
+                  <div className="col-span-6">CUSTOMER</div>
+                  <div className="col-span-3 text-center">GALLONS</div>
+                  <div className="col-span-3 text-right">ACTION</div>
+                </div>
+
+                <div className="divide-y divide-gray-50">
+                  {data.recentTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      onClick={() => router.push(`/transactions/${tx.id}`)}
+                      className="grid grid-cols-12 gap-4 py-3 items-center group hover:bg-gray-50/80 transition-colors -mx-6 px-6 cursor-pointer"
+                    >
+                      <div className="col-span-6 flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center font-bold text-sm">
+                          {getInitials(tx.name)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 text-sm">
+                            {tx.name}
+                          </p>
+                          <p className="text-xs text-gray-500 font-medium">
+                            {tx.isWalkIn ? "Walk-In" : "Delivery"} • {tx.type}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="col-span-3 flex items-center justify-center">
+                        <span className="px-3 py-1 bg-white border border-gray-200 shadow-sm rounded-lg text-xs font-bold text-gray-700">
+                          {tx.gallons} Gal
+                        </span>
+                      </div>
+                      <div className="col-span-3 flex items-center justify-end">
+                        {/* Placeholder for Shadcn DropdownMenu */}
+                        <button
+                          className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation(); /* Prevent row click */
+                          }}
+                        >
+                          <MoreHorizontal className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </DashboardPanel>
+          </div>
+
+          {/* RIGHT COLUMN: PHASE 4 - CONTAINER RECOVERY */}
+          <div className="space-y-6">
+            <DashboardPanel
+              title="Container Recovery"
+              className="bg-white border-gray-200"
+            >
+              <p className="text-sm text-gray-500 mb-6">
+                Customers holding the most inventory.
+              </p>
+
+              <div className="space-y-4">
+                {data.followUpList.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="flex flex-col p-4 rounded-2xl border border-gray-100 bg-gray-50/50"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <span className="font-bold text-gray-900 text-base block">
+                          {customer.name}
+                        </span>
+                        <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md mt-1 inline-block border border-orange-100">
+                          {customer.balance} Containers Out
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 mt-auto">
+                      <button
+                        onClick={() => markReturned(customer.id)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-gray-900 text-white py-2 rounded-lg text-xs font-bold hover:bg-gray-800 transition-colors"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Returned
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </DashboardPanel>
+          </div>
+        </div>
       </div>
     </div>
   );
