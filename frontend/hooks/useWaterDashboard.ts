@@ -1,4 +1,3 @@
-// hooks/useWaterDashboard.ts
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +15,7 @@ export function useWaterDashboard() {
   const [dateRange, setDateRange] = useState("today");
   const [data, setData] = useState<WaterDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
 
   // Mark Containers as Returned
   const markReturned = async (customerId: string) => {
@@ -34,15 +34,41 @@ export function useWaterDashboard() {
   async function fetchDashboard() {
     try {
       setLoading(true);
-      const todayStr = new Date().toLocaleDateString("en-CA");
 
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const today = new Date();
+      const todayStr = today.toLocaleDateString("en-CA");
 
+      // 1. Calculate dynamic dynamic date gap based on filter state
+      let filterStartDate = new Date();
+      let labelSuffix = "Today";
+
+      if (dateRange === "7days") {
+        filterStartDate.setDate(today.getDate() - 7);
+        labelSuffix = "Last 7 Days";
+      } else if (dateRange === "30days") {
+        filterStartDate.setDate(today.getDate() - 30);
+        labelSuffix = "Last 30 Days";
+      } else {
+        // "today" fallback option
+        filterStartDate = today;
+        labelSuffix = "Today";
+      }
+
+      const startDateStr = filterStartDate.toLocaleDateString("en-CA");
+
+      // For charts, we always want at least 7 days of historical tracking data
+      const chartStartDate = new Date();
+      chartStartDate.setDate(today.getDate() - 7);
+      const chartStartDateStr = chartStartDate.toLocaleDateString("en-CA");
+
+      const finalFetchStartDate =
+        startDateStr < chartStartDateStr ? startDateStr : chartStartDateStr;
+
+      // 2. Fetch data from the minimum date required to cover metrics + charts
       const { data: txData } = await supabase
         .from("transactions")
         .select("*")
-        .gte("transaction_date", sevenDaysAgo.toLocaleDateString("en-CA"))
+        .gte("transaction_date", finalFetchStartDate)
         .order("created_at", { ascending: false });
 
       const { data: customersData } = await supabase
@@ -54,18 +80,28 @@ export function useWaterDashboard() {
       const transactions = txData || [];
       const customers = customersData || [];
 
-      const todayTxs = transactions.filter(
-        (tx) => tx.transaction_date === todayStr,
-      );
-      const todayGallons = todayTxs.reduce(
+      // 3. Filter transactions to calculate metrics based on the selected window
+      const filteredTxs = transactions.filter((tx) => {
+        if (dateRange === "today") {
+          return tx.transaction_date === todayStr;
+        }
+        // Matches anything within the selected past window down to today
+        return (
+          tx.transaction_date >= startDateStr && tx.transaction_date <= todayStr
+        );
+      });
+
+      // Aggregate Calculations for Selected Window
+      const rangeGallons = filteredTxs.reduce(
         (sum, tx) => sum + (tx.new_gallon || 0),
         0,
       );
-      const todayRevenue = todayGallons * 45;
+      const rangeRevenue = rangeGallons * 45;
 
       const activeCustomerIds = new Set(
-        todayTxs.filter((tx) => tx.customer_id).map((tx) => tx.customer_id),
+        filteredTxs.filter((tx) => tx.customer_id).map((tx) => tx.customer_id),
       );
+
       const totalContainersOut = customers.reduce(
         (sum, c) => sum + (c.container_balance || 0),
         0,
@@ -73,14 +109,14 @@ export function useWaterDashboard() {
 
       let walkInCount = 0;
       let deliveryCount = 0;
-      todayTxs.forEach((tx) =>
+      filteredTxs.forEach((tx) =>
         tx.is_walk_in ? walkInCount++ : deliveryCount++,
       );
 
-      // Today's Summary Calculations
-      const avgSale = todayTxs.length > 0 ? todayRevenue / todayTxs.length : 0;
+      const avgSale =
+        filteredTxs.length > 0 ? rangeRevenue / filteredTxs.length : 0;
 
-      // Action Center Logic
+      // Action Center Warnings Logic
       const alerts: DashboardAlert[] = [];
       const overdueCustomers = customers.filter(
         (c) => c.container_balance >= 5,
@@ -102,14 +138,15 @@ export function useWaterDashboard() {
           count: totalContainersOut,
         });
       }
-      if (todayRevenue >= 5000) {
+      if (rangeRevenue >= 5000) {
         alerts.push({
           id: "3",
           type: "success",
-          title: "Daily Revenue Target Reached!",
+          title: "Revenue Target Milestone Reached!",
         });
       }
 
+      // Generate Line Trends using the underlying database records
       const trendMap: Record<string, number> = {};
       transactions.forEach((tx) => {
         const date = tx.transaction_date;
@@ -122,18 +159,18 @@ export function useWaterDashboard() {
 
       setData({
         revenueToday: {
-          label: "Revenue Today",
-          value: `₱ ${todayRevenue.toLocaleString()}`,
+          label: `Revenue (${labelSuffix})`,
+          value: `₱ ${rangeRevenue.toLocaleString()}`,
           icon: Banknote,
-          trendText: "Today's Gross",
+          trendText: `${labelSuffix} Gross`,
           trendTone: "positive",
           href: "/transactions",
         },
         txToday: {
-          label: "Transactions",
-          value: todayTxs.length,
+          label: `Transactions (${labelSuffix})`,
+          value: filteredTxs.length,
           icon: ShoppingCart,
-          trendText: "New Orders",
+          trendText: "Orders Count",
           trendTone: "positive",
           href: "/transactions",
         },
@@ -154,19 +191,19 @@ export function useWaterDashboard() {
           href: "/customers",
         },
         gallonsToday: {
-          label: "Gallons Sold",
-          value: todayGallons,
+          label: `Gallons Sold (${labelSuffix})`,
+          value: rangeGallons,
           icon: Droplets,
-          trendText: "Volume",
+          trendText: "Volume Poured",
           trendTone: "positive",
         },
         revenueTrend,
         walkInSplit: { walkIn: walkInCount, delivery: deliveryCount },
         alerts,
         summary: {
-          revenue: todayRevenue,
-          transactions: todayTxs.length,
-          gallons: todayGallons,
+          revenue: rangeRevenue,
+          transactions: filteredTxs.length,
+          gallons: rangeGallons,
           walkIn: walkInCount,
           delivery: deliveryCount,
           avgSale,
@@ -199,5 +236,13 @@ export function useWaterDashboard() {
     fetchDashboard();
   }, [dateRange]);
 
-  return { data, loading, dateRange, setDateRange, markReturned };
+  return {
+    data,
+    loading,
+    dateRange,
+    setDateRange,
+    markReturned,
+    isNewOrderOpen,
+    setIsNewOrderOpen,
+  };
 }

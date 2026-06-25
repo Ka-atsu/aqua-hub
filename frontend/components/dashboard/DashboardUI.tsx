@@ -36,12 +36,13 @@ export function DashboardPanel({
 }) {
   return (
     <div
-      className={`bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col ${className}`}
+      className={`bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col min-h-0 ${className}`}
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <h3 className="text-gray-900 font-bold text-lg">{title}</h3>
       </div>
-      <div className="flex-1 flex flex-col">{children}</div>
+      {/* Added min-h-0 here to ensure flex scaling is inherited correctly */}
+      <div className="flex-1 flex flex-col min-h-0">{children}</div>
     </div>
   );
 }
