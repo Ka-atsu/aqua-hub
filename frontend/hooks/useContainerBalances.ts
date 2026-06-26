@@ -7,9 +7,10 @@ export function useContainerBalances(pageSize = 50) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Pagination state
+  // Pagination & Aggregation state
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0); // Total Debtors
+  const [globalTotalContainers, setGlobalTotalContainers] = useState(0); // Total Containers Out
 
   const refreshBalances = async (page = currentPage) => {
     try {
@@ -18,6 +19,7 @@ export function useContainerBalances(pageSize = 50) {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
+      // 1. Fetch paginated customers
       const {
         data,
         error: dbError,
@@ -31,7 +33,15 @@ export function useContainerBalances(pageSize = 50) {
 
       if (dbError) throw dbError;
 
+      // 2. Fetch global container sum via RPC
+      const { data: sumData, error: sumError } = await supabase.rpc(
+        "get_total_outstanding_containers",
+      );
+
+      if (sumError) console.error("Error fetching global sum:", sumError);
+
       if (count !== null) setTotalCount(count);
+      if (sumData !== null) setGlobalTotalContainers(sumData as number);
 
       const formattedBalances: ContainerBalance[] = (data || []).map(
         (customer) => ({
@@ -55,23 +65,21 @@ export function useContainerBalances(pageSize = 50) {
     }
   };
 
-  // Function to zero out a customer's debt
-  const markReturned = async (customerId: string) => {
+  // Function to log a partial or full return
+  const logReturn = async (customerId: string, quantity: number) => {
     try {
-      // Opting for a localized loading feel, or just block UI slightly
-      // Using Supabase update to set balance to 0
-      const { error: updateError } = await supabase
-        .from("customers")
-        .update({ container_balance: 0 })
-        .eq("id", customerId);
+      const { error: rpcError } = await supabase.rpc("log_container_return", {
+        p_customer_id: customerId,
+        p_return_quantity: quantity,
+      });
 
-      if (updateError) throw updateError;
+      if (rpcError) throw rpcError;
 
       // Refresh the page data immediately after success
       refreshBalances(currentPage);
     } catch (err: any) {
-      console.error("Error updating balance:", err.message);
-      alert("Failed to mark containers as returned. Please try again.");
+      console.error("Error logging return:", err.message);
+      alert("Failed to log the return. Please try again.");
     }
   };
 
@@ -98,10 +106,11 @@ export function useContainerBalances(pageSize = 50) {
     isLoading,
     error,
     refreshBalances: () => refreshBalances(currentPage),
-    markReturned,
+    logReturn,
     currentPage,
     totalPages,
     totalCount,
+    globalTotalContainers,
     goToNextPage,
     goToPrevPage,
     pageSize,

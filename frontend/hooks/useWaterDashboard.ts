@@ -180,7 +180,6 @@ export function useWaterDashboard() {
           icon: Users,
           trendText: "Distinct",
           trendTone: "neutral",
-          href: "/customers",
         },
         containersOut: {
           label: "Containers Out",
@@ -188,7 +187,7 @@ export function useWaterDashboard() {
           icon: Container,
           trendText: "Needs recovery",
           trendTone: "warning",
-          href: "/customers",
+          href: "/containers",
         },
         gallonsToday: {
           label: `Gallons Sold (${labelSuffix})`,

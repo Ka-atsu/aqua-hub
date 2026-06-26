@@ -87,6 +87,31 @@ export default function Sidebar({ onOpenUpload }: SidebarProps) {
               Operations
             </p>
             <div className="space-y-1">
+              <Link
+                href="/transactions"
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${pathname === "/transactions" ? "bg-teal-50/50 text-[#0A4C5A] font-bold relative" : "text-gray-500 font-semibold hover:bg-gray-50"}`}
+              >
+                {pathname === "/transactions" && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#00D084] rounded-r-full"></div>
+                )}
+                <ShoppingCart
+                  className="w-4 h-4 text-[#00D084]"
+                  strokeWidth={2.5}
+                />
+                Transactions
+              </Link>
+
+              <Link
+                href="/containers"
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${pathname === "/containers" ? "bg-teal-50/50 text-[#0A4C5A] font-bold relative" : "text-gray-500 font-semibold hover:bg-gray-50"}`}
+              >
+                {pathname === "/containers" && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#00D084] rounded-r-full"></div>
+                )}
+                <Boxes className="w-4 h-4 text-[#00D084]" strokeWidth={2.5} />
+                Containers
+              </Link>
+
               <button
                 onClick={onOpenUpload}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-500 hover:bg-gray-50 hover:text-[#0A4C5A] rounded-lg font-semibold transition-colors text-sm text-left"
