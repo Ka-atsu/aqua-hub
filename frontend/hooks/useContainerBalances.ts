@@ -1,4 +1,3 @@
-// hooks/useContainerBalances.ts
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { ContainerBalance } from "@/types/containers";
@@ -16,12 +15,9 @@ export function useContainerBalances(pageSize = 50) {
     try {
       setIsLoading(true);
 
-      // Calculate the Supabase range (0-indexed)
-      // Page 1: 0 to 49. Page 2: 50 to 99.
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      // Notice { count: "exact" } - this tells Supabase to return the total matching rows!
       const {
         data,
         error: dbError,
@@ -42,8 +38,6 @@ export function useContainerBalances(pageSize = 50) {
           id: customer.id,
           customerName: customer.name || "Unknown Customer",
           phoneNumber: customer.phone || customer.phone_number || null,
-          totalBorrowed: 0,
-          totalReturned: 0,
           outstandingBalance: customer.container_balance || 0,
           lastActivityDate:
             customer.updated_at ||
@@ -61,12 +55,35 @@ export function useContainerBalances(pageSize = 50) {
     }
   };
 
-  // Trigger fetch when currentPage changes
-  useEffect(() => {
-    refreshBalances(currentPage);
-  }, [currentPage]);
+  // Function to zero out a customer's debt
+  const markReturned = async (customerId: string) => {
+    try {
+      // Opting for a localized loading feel, or just block UI slightly
+      // Using Supabase update to set balance to 0
+      const { error: updateError } = await supabase
+        .from("customers")
+        .update({ container_balance: 0 })
+        .eq("id", customerId);
+
+      if (updateError) throw updateError;
+
+      // Refresh the page data immediately after success
+      refreshBalances(currentPage);
+    } catch (err: any) {
+      console.error("Error updating balance:", err.message);
+      alert("Failed to mark containers as returned. Please try again.");
+    }
+  };
 
   const totalPages = Math.ceil(totalCount / pageSize);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    } else {
+      refreshBalances(currentPage);
+    }
+  }, [currentPage, totalPages]);
 
   const goToNextPage = () => {
     if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
@@ -81,6 +98,7 @@ export function useContainerBalances(pageSize = 50) {
     isLoading,
     error,
     refreshBalances: () => refreshBalances(currentPage),
+    markReturned,
     currentPage,
     totalPages,
     totalCount,
