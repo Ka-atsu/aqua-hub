@@ -12,7 +12,6 @@ export interface Customer {
 export interface Order {
   id: string;
   customer_id: string | null;
-  name: string | null;
   transaction_date: string;
   container_type_id: number;
   quantity: number;
@@ -23,7 +22,6 @@ export interface Order {
 
 export interface OrderFormData {
   customer_id: string | null;
-  name: string;
   transaction_date: string;
   container_type_id: number;
   quantity: number;
@@ -46,7 +44,6 @@ const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toLocaleDa
 
 const DEFAULT_FORM: OrderFormData = {
   customer_id: null,
-  name: "",
   transaction_date: today,
   container_type_id: 1,
   quantity: 1,
@@ -109,7 +106,11 @@ export function useOrders() {
   const filtered = orders.filter((o) => {
     const matchesSearch =
       filters.search === "" ||
-      o.name?.toLowerCase().includes(filters.search.toLowerCase());
+      (o.is_walk_in && "walk-in".includes(filters.search.toLowerCase())) ||
+      (!o.is_walk_in && o.customer_id && customers.some(c => 
+        c.customer_id === o.customer_id && 
+        (`${c.first_name} ${c.last_name}`.toLowerCase().includes(filters.search.toLowerCase()))
+      ));
     const matchesType =
       filters.type === "all" || o.container_type_id === Number(filters.type);
     return matchesSearch && matchesType;
@@ -125,7 +126,6 @@ export function useOrders() {
     setEditingOrder(order);
     setForm({
       customer_id: order.customer_id,
-      name: order.name || "",
       transaction_date: order.transaction_date,
       container_type_id: order.container_type_id,
       quantity: order.quantity,
@@ -151,7 +151,6 @@ export function useOrders() {
       setError(null);
 
       let customerId = form.customer_id;
-      let customerName = form.name;
 
       if (form.isNewCustomer && !form.is_walk_in) {
         if (!form.newFirstName.trim() || !form.newLastName.trim()) {
@@ -170,7 +169,6 @@ export function useOrders() {
 
         if (customerError) throw customerError;
         customerId = newCustomer.customer_id;
-        customerName = `${form.newFirstName.trim()} ${form.newLastName.trim()}`;
         await fetchCustomers();
       }
 
@@ -178,7 +176,6 @@ export function useOrders() {
 
       const payload = {
         customer_id: form.is_walk_in ? null : customerId,
-        name: form.is_walk_in ? "Walk-In" : customerName,
         transaction_date: form.transaction_date,
         container_type_id: form.container_type_id,
         quantity: form.quantity,

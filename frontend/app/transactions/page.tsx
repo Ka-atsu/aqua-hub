@@ -32,10 +32,9 @@ function OrderModal({
 
   const handleCustomerChange = (value: string) => {
     if (value === "__new__") {
-      patch({ isNewCustomer: true, customer_id: null, name: "" });
+      patch({ isNewCustomer: true, customer_id: null });
     } else {
-      const found = customers.find((c) => c.customer_id === value);
-      patch({ isNewCustomer: false, customer_id: value, name: found ? `${found.first_name} ${found.last_name}` : "" });
+      patch({ isNewCustomer: false, customer_id: value });
     }
   };
 
@@ -68,7 +67,7 @@ function OrderModal({
               <div className="flex gap-3 mt-1">
                 {[{ label: "Delivery", value: false }, { label: "Walk-In", value: true }].map((opt) => (
                   <button key={opt.label} type="button"
-                    onClick={() => patch({ is_walk_in: opt.value, customer_id: null, name: "", isNewCustomer: false })}
+                    onClick={() => patch({ is_walk_in: opt.value, customer_id: null, isNewCustomer: false })}
                     className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${form.is_walk_in === opt.value ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}>
                     {opt.label}
                   </button>
@@ -155,16 +154,18 @@ function OrderModal({
   );
 }
 
-function OrderRow({ order, onEdit, onDelete }: { order: Order; onEdit: () => void; onDelete: () => void }) {
+function OrderRow({ order, customers, onEdit, onDelete }: { order: Order; customers: Customer[]; onEdit: () => void; onDelete: () => void }) {
   const typeName = order.container_type_id === 2 ? "Round" : "Slim";
+  const customerName = order.is_walk_in ? "Walk-In" : (order.customer_id ? customers.find(c => c.customer_id === order.customer_id)?.first_name + " " + customers.find(c => c.customer_id === order.customer_id)?.last_name : "Unknown");
+  const initials = customerName.substring(0, 2).toUpperCase();
   return (
     <article className="grid grid-cols-12 gap-4 py-3 px-2 items-center hover:bg-gray-50 rounded-xl transition-colors group">
       <div className="col-span-4 flex items-center gap-3">
         <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center font-bold text-xs text-gray-600 shrink-0">
-          {(order.name || "WI").substring(0, 2).toUpperCase()}
+          {initials}
         </div>
         <div className="truncate">
-          <p className="font-bold text-gray-900 text-sm truncate">{order.name || "Walk-In"}</p>
+          <p className="font-bold text-gray-900 text-sm truncate">{customerName}</p>
           <p className="text-xs text-gray-400 font-semibold">{order.is_walk_in ? "Walk-In" : "Delivery"} · {typeName}</p>
         </div>
       </div>
@@ -245,10 +246,13 @@ export default function TransactionsPage() {
             ) : orders.length === 0 ? (
               <div className="py-16 text-center text-sm text-gray-400 font-medium">No orders found. Try adjusting your filters.</div>
             ) : (
-              orders.map((order) => (
-                <OrderRow key={order.id} order={order} onEdit={() => openEdit(order)}
-                  onDelete={() => { if (confirm(`Delete order for ${order.name || "Walk-In"}?`)) deleteOrder(order.id); }} />
-              ))
+              orders.map((order) => {
+                const customerName = order.is_walk_in ? "Walk-In" : (order.customer_id ? customers.find(c => c.customer_id === order.customer_id)?.first_name + " " + customers.find(c => c.customer_id === order.customer_id)?.last_name : "Unknown");
+                return (
+                  <OrderRow key={order.id} order={order} customers={customers} onEdit={() => openEdit(order)}
+                    onDelete={() => { if (confirm(`Delete order for ${customerName}?`)) deleteOrder(order.id); }} />
+                );
+              })
             )}
           </div>
         </div>
