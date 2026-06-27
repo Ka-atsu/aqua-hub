@@ -174,21 +174,60 @@ export function useOrders() {
 
       const amount = form.quantity * 20;
 
-      const payload = {
-        customer_id: form.is_walk_in ? null : customerId,
-        transaction_date: form.transaction_date,
-        container_type_id: form.container_type_id,
-        quantity: form.quantity,
-        amount,
-        is_walk_in: form.is_walk_in,
-      };
+      // Check for existing order with same customer_id/walk-in status on same date
+      const { data: existingOrders, error: fetchError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("transaction_date", form.transaction_date)
+        .eq("is_walk_in", form.is_walk_in)
+        .eq("customer_id", form.is_walk_in ? null : customerId);
 
-      if (editingOrder) {
-        const { error } = await supabase.from("orders").update(payload).eq("id", editingOrder.id);
-        if (error) throw error;
+      if (fetchError) throw fetchError;
+
+      const existingOrder = existingOrders && existingOrders.length > 0 
+        ? existingOrders.find(o => o.id !== editingOrder?.id) 
+        : null;
+
+      if (existingOrder) {
+        // Update existing order: increment quantity and recalculate amount
+        const newQuantity = existingOrder.quantity + form.quantity;
+        const newAmount = newQuantity * 20;
+
+        const { error: updateError } = await supabase
+          .from("orders")
+          .update({
+            quantity: newQuantity,
+            amount: newAmount,
+          })
+          .eq("id", existingOrder.id);
+
+        if (updateError) throw updateError;
+
+        // If we were editing a different order, delete it
+        if (editingOrder && editingOrder.id !== existingOrder.id) {
+          await supabase.from("orders").delete().eq("id", editingOrder.id);
+        }
       } else {
-        const { error } = await supabase.from("orders").insert([payload]);
-        if (error) throw error;
+        // No existing order, create or update as normal
+        const payload = {
+          customer_id: form.is_walk_in ? null : customerId,
+          transaction_date: form.transaction_date,
+          container_type_id: form.container_type_id,
+          quantity: form.quantity,
+          amount,
+          is_walk_in: form.is_walk_in,
+        };
+
+        if (editingOrder) {
+          const { error } = await supabase
+            .from("orders")
+            .update(payload)
+            .eq("id", editingOrder.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("orders").insert([payload]);
+          if (error) throw error;
+        }
       }
 
       closeModal();
