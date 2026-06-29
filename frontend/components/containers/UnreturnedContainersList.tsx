@@ -1,37 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useContainerBalances } from "@/hooks/useContainerBalances";
 import { AlertTriangle, TrendingUp, ShieldAlert } from "lucide-react";
-
-interface UnreturnedContainersListProps {
-  className?: string;
-}
-
-function getAgingSignal(lastActive: string) {
-  const daysOld = Math.floor(
-    (new Date().getTime() - new Date(lastActive).getTime()) /
-      (1000 * 3600 * 24),
-  );
-
-  if (daysOld >= 30)
-    return {
-      label: "Critical",
-      class: "bg-red-50 text-red-700 ring-1 ring-red-600/10",
-      isCritical: true,
-    };
-  if (daysOld >= 7)
-    return {
-      label: "Warning",
-      class: "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20",
-      isCritical: false,
-    };
-  return {
-    label: "Normal",
-    class: "bg-gray-50 text-gray-600 ring-1 ring-gray-500/10",
-    isCritical: false,
-  };
-}
+import {
+  useContainerBalances,
+  getAgingSignal,
+} from "@/hooks/useContainerBalances";
+import { UnreturnedContainersListProps } from "@/types/containers";
 
 export default function UnreturnedContainersList({
   className = "",
@@ -41,7 +15,6 @@ export default function UnreturnedContainersList({
     isLoading,
     error,
     refreshBalances,
-    logReturn,
     currentPage,
     totalPages,
     totalCount,
@@ -49,56 +22,11 @@ export default function UnreturnedContainersList({
     goToNextPage,
     goToPrevPage,
     pageSize,
+    returnInputs,
+    insights,
+    handleInputChange,
+    handleLogReturn,
   } = useContainerBalances();
-
-  const [returnInputs, setReturnInputs] = useState<Record<string, string>>({});
-
-  const insights = useMemo(() => {
-    let atRiskContainers = 0;
-    let criticalCustomers = 0;
-
-    balances.forEach((row) => {
-      const daysOld = Math.floor(
-        (new Date().getTime() - new Date(row.lastActivityDate).getTime()) /
-          (1000 * 3600 * 24),
-      );
-      if (daysOld >= 30) {
-        atRiskContainers += row.outstandingBalance;
-        criticalCustomers += 1;
-      }
-    });
-
-    const REPLACEMENT_COST = 150;
-    const assetValue = globalTotalContainers * REPLACEMENT_COST;
-
-    const healthyCustomers = balances.length - criticalCustomers;
-    const healthPercentage =
-      balances.length > 0
-        ? Math.round((healthyCustomers / balances.length) * 100)
-        : 100;
-
-    return {
-      atRiskContainers,
-      criticalCustomers,
-      assetValue,
-      healthPercentage,
-    };
-  }, [balances, globalTotalContainers]);
-
-  const handleInputChange = (id: string, val: string, max: number) => {
-    const num = parseInt(val, 10);
-    if (val === "") {
-      setReturnInputs((prev) => ({ ...prev, [id]: "" }));
-    } else if (!isNaN(num) && num >= 1 && num <= max) {
-      setReturnInputs((prev) => ({ ...prev, [id]: num.toString() }));
-    }
-  };
-
-  const handleLogReturn = (id: string, max: number) => {
-    const qty = parseInt(returnInputs[id] || max.toString(), 10);
-    logReturn(id, qty);
-    setReturnInputs((prev) => ({ ...prev, [id]: "" }));
-  };
 
   if (isLoading && balances.length === 0) {
     return (
@@ -146,9 +74,7 @@ export default function UnreturnedContainersList({
 
   return (
     <div className="w-full">
-      {/* FLAT INTEGRATED LAYOUT: Removed shadow, rounded corners, and distinct background */}
       <div className="w-full flex flex-col bg-transparent">
-        {/* 1. HEADER (Now uses a clean bottom border instead of a box header) */}
         <div className="py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg font-bold text-gray-900">Debtor Registry</h2>
           <div className="flex gap-2">
@@ -161,7 +87,6 @@ export default function UnreturnedContainersList({
           </div>
         </div>
 
-        {/* 2. INTEGRATED STATS STRIP (Completely flat with subtle dividers) */}
         <div className="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200 py-6">
           <div className="flex flex-col items-center justify-center px-4 text-center">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
@@ -212,7 +137,6 @@ export default function UnreturnedContainersList({
           </div>
         </div>
 
-        {/* 3. TABLE SECTION (Flat backgrounds, relying strictly on borders for structure) */}
         <div className={`overflow-x-auto ${className} relative`}>
           {isLoading && balances.length > 0 && (
             <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-20 flex justify-center items-center">
@@ -252,11 +176,9 @@ export default function UnreturnedContainersList({
                     key={row.id}
                     className="hover:bg-gray-50/80 transition-colors group"
                   >
-                    {/* Note: Removed left padding on first column to make it sit flush with the div */}
                     <td className="py-4 pr-6 font-medium text-gray-900">
                       {row.customerName}
                     </td>
-
                     <td className="px-6 py-4 text-gray-500">
                       {row.phoneNumber ? (
                         <a
@@ -269,13 +191,16 @@ export default function UnreturnedContainersList({
                         <span className="text-gray-400 italic">Unlisted</span>
                       )}
                     </td>
-
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <span className="text-gray-600">
                           {new Date(row.lastActivityDate).toLocaleDateString(
                             undefined,
-                            { month: "short", day: "numeric", year: "numeric" },
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            },
                           )}
                         </span>
                         <span
@@ -285,26 +210,18 @@ export default function UnreturnedContainersList({
                         </span>
                       </div>
                     </td>
-
                     <td className="px-6 py-4 text-right">
                       <span
-                        className={`font-semibold text-base ${
-                          row.outstandingBalance >= 5
-                            ? "text-red-600"
-                            : "text-gray-900"
-                        }`}
+                        className={`font-semibold text-base ${row.outstandingBalance >= 5 ? "text-red-600" : "text-gray-900"}`}
                       >
                         {row.outstandingBalance}
                       </span>
                     </td>
-
-                    {/* Note: Removed right padding on last column to keep it flush */}
                     <td className="py-4 pl-6">
                       <div className="flex items-center justify-end gap-3">
                         {aging.isCritical && (
                           <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
                         )}
-
                         <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all overflow-hidden">
                           <input
                             type="number"
@@ -344,7 +261,6 @@ export default function UnreturnedContainersList({
           </table>
         </div>
 
-        {/* 4. PAGINATION (Anchors the bottom of the list without drawing a harsh box around it) */}
         <div className="py-4 border-t border-gray-200 flex items-center justify-between">
           <p className="text-sm text-gray-500">
             {totalCount > pageSize ? (

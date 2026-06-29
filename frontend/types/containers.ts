@@ -7,3 +7,7 @@ export interface ContainerBalance {
   outstandingBalance: number;
   lastActivityDate: string;
 }
+
+export interface UnreturnedContainersListProps {
+  className?: string;
+}

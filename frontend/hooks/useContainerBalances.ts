@@ -1,6 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { ContainerBalance } from "@/types/containers";
+
+// Helper function moved here so the UI file stays clean
+export function getAgingSignal(lastActive: string) {
+  const daysOld = Math.floor(
+    (new Date().getTime() - new Date(lastActive).getTime()) /
+      (1000 * 3600 * 24),
+  );
+
+  if (daysOld >= 30)
+    return {
+      label: "Critical",
+      class: "bg-red-50 text-red-700 ring-1 ring-red-600/10",
+      isCritical: true,
+    };
+  if (daysOld >= 7)
+    return {
+      label: "Warning",
+      class: "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20",
+      isCritical: false,
+    };
+  return {
+    label: "Normal",
+    class: "bg-gray-50 text-gray-600 ring-1 ring-gray-500/10",
+    isCritical: false,
+  };
+}
 
 export function useContainerBalances(pageSize = 50) {
   const [balances, setBalances] = useState<ContainerBalance[]>([]);
@@ -9,9 +35,10 @@ export function useContainerBalances(pageSize = 50) {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-
-  // 1. Re-added global total state
   const [globalTotalContainers, setGlobalTotalContainers] = useState(0);
+
+  // --- UI STATE MOVED FROM COMPONENT ---
+  const [returnInputs, setReturnInputs] = useState<Record<string, string>>({});
 
   const refreshBalances = async (page = currentPage) => {
     try {
@@ -19,7 +46,6 @@ export function useContainerBalances(pageSize = 50) {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      // Query the normalized view for paginated table data
       const {
         data,
         error: dbError,
@@ -32,10 +58,8 @@ export function useContainerBalances(pageSize = 50) {
         .range(from, to);
 
       if (dbError) throw dbError;
-
       if (count !== null) setTotalCount(count);
 
-      // 2. Fetch all outstanding balances to calculate the true global total
       const { data: allBalances, error: sumError } = await supabase
         .from("view_customer_container_balances")
         .select("outstanding_balance")
@@ -66,10 +90,8 @@ export function useContainerBalances(pageSize = 50) {
     }
   };
 
-  // Log a return as a negative quantity transaction (2-Table Schema)
   const logReturn = async (customerId: string, quantity: number) => {
     try {
-      // Step 1: Find the container_type_id for "ROUND"
       const { data: typeData, error: typeError } = await supabase
         .from("container_types")
         .select("container_type_id")
@@ -79,7 +101,6 @@ export function useContainerBalances(pageSize = 50) {
       if (typeError || !typeData)
         throw new Error("Could not find ROUND container type.");
 
-      // Step 2: Insert the Transaction Header
       const { data: txData, error: txError } = await supabase
         .from("container_transactions")
         .insert({
@@ -91,18 +112,16 @@ export function useContainerBalances(pageSize = 50) {
 
       if (txError || !txData) throw txError;
 
-      // Step 3: Insert the Transaction Item with the negative quantity
       const { error: itemError } = await supabase
         .from("container_transaction_items")
         .insert({
           transaction_id: txData.transaction_id,
           container_type_id: typeData.container_type_id,
-          quantity: -Math.abs(quantity), // Negative signifies a return
+          quantity: -Math.abs(quantity),
         });
 
       if (itemError) throw itemError;
 
-      // Success! Refresh the UI
       refreshBalances(currentPage);
     } catch (err: any) {
       console.error("Error logging return:", err.message);
@@ -128,6 +147,54 @@ export function useContainerBalances(pageSize = 50) {
     if (currentPage > 1) setCurrentPage((prev) => prev - 1);
   };
 
+  // --- UI LOGIC MOVED FROM COMPONENT ---
+  const insights = useMemo(() => {
+    let atRiskContainers = 0;
+    let criticalCustomers = 0;
+
+    balances.forEach((row) => {
+      const daysOld = Math.floor(
+        (new Date().getTime() - new Date(row.lastActivityDate).getTime()) /
+          (1000 * 3600 * 24),
+      );
+      if (daysOld >= 30) {
+        atRiskContainers += row.outstandingBalance;
+        criticalCustomers += 1;
+      }
+    });
+
+    const REPLACEMENT_COST = 150;
+    const assetValue = globalTotalContainers * REPLACEMENT_COST;
+
+    const healthyCustomers = balances.length - criticalCustomers;
+    const healthPercentage =
+      balances.length > 0
+        ? Math.round((healthyCustomers / balances.length) * 100)
+        : 100;
+
+    return {
+      atRiskContainers,
+      criticalCustomers,
+      assetValue,
+      healthPercentage,
+    };
+  }, [balances, globalTotalContainers]);
+
+  const handleInputChange = (id: string, val: string, max: number) => {
+    const num = parseInt(val, 10);
+    if (val === "") {
+      setReturnInputs((prev) => ({ ...prev, [id]: "" }));
+    } else if (!isNaN(num) && num >= 1 && num <= max) {
+      setReturnInputs((prev) => ({ ...prev, [id]: num.toString() }));
+    }
+  };
+
+  const handleLogReturn = async (id: string, max: number) => {
+    const qty = parseInt(returnInputs[id] || max.toString(), 10);
+    await logReturn(id, qty);
+    setReturnInputs((prev) => ({ ...prev, [id]: "" }));
+  };
+
   return {
     balances,
     isLoading,
@@ -141,5 +208,9 @@ export function useContainerBalances(pageSize = 50) {
     goToNextPage,
     goToPrevPage,
     pageSize,
+    returnInputs,
+    insights,
+    handleInputChange,
+    handleLogReturn,
   };
 }
