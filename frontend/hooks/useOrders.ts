@@ -175,12 +175,19 @@ export function useOrders() {
       const amount = form.quantity * 20;
 
       // Check for existing order with same customer_id/walk-in status on same date
-      const { data: existingOrders, error: fetchError } = await supabase
+      let query = supabase
         .from("orders")
         .select("*")
         .eq("transaction_date", form.transaction_date)
-        .eq("is_walk_in", form.is_walk_in)
-        .eq("customer_id", form.is_walk_in ? null : customerId);
+        .eq("is_walk_in", form.is_walk_in);
+
+      if (form.is_walk_in) {
+        query = query.is("customer_id", null);
+      } else {
+        query = query.eq("customer_id", customerId);
+      }
+
+      const { data: existingOrders, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
