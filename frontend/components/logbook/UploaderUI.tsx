@@ -1,4 +1,3 @@
-// components/logbook/UploaderUI.tsx
 import {
   Upload,
   FileSpreadsheet,
@@ -72,10 +71,8 @@ export function ExtractedDataTable({
             <tr className="bg-gray-100 text-xs font-semibold uppercase text-gray-600 border-b sticky top-0">
               <th className="py-2 px-2">Date</th>
               <th className="py-2 px-2">Name</th>
-              <th className="py-2 px-2 text-center">New Gal</th>
-              <th className="py-2 px-2 text-center">Old Gal</th>
+              <th className="py-2 px-2 text-center">Quantity</th>
               <th className="py-2 px-2">Type</th>
-              <th className="py-2 px-2">Address</th>
             </tr>
           </thead>
           <tbody className="divide-y text-xs">
@@ -105,27 +102,12 @@ export function ExtractedDataTable({
                   <input
                     type="number"
                     min="0"
-                    className="w-14 px-1 py-1 text-center mx-auto border border-transparent hover:border-gray-300 focus:border-[#0A4C5A] rounded bg-transparent"
-                    value={row.newGallon}
+                    className="w-16 px-1 py-1 text-center mx-auto border border-transparent hover:border-gray-300 focus:border-[#0A4C5A] rounded bg-transparent"
+                    value={row.quantity}
                     onChange={(e) =>
                       onFieldChange(
                         row.id,
-                        "newGallon",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                  />
-                </td>
-                <td className="p-1 text-center">
-                  <input
-                    type="number"
-                    min="0"
-                    className="w-14 px-1 py-1 text-center mx-auto border border-transparent hover:border-gray-300 focus:border-[#0A4C5A] rounded bg-transparent"
-                    value={row.oldGallon}
-                    onChange={(e) =>
-                      onFieldChange(
-                        row.id,
-                        "oldGallon",
+                        "quantity",
                         parseInt(e.target.value) || 0,
                       )
                     }
@@ -138,16 +120,6 @@ export function ExtractedDataTable({
                     value={row.type}
                     onChange={(e) =>
                       onFieldChange(row.id, "type", e.target.value)
-                    }
-                  />
-                </td>
-                <td className="p-1">
-                  <input
-                    type="text"
-                    className="w-full px-2 py-1 border border-transparent hover:border-gray-300 focus:border-[#0A4C5A] rounded bg-transparent"
-                    value={row.address}
-                    onChange={(e) =>
-                      onFieldChange(row.id, "address", e.target.value)
                     }
                   />
                 </td>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Dispatch, SetStateAction } from "react";
 import { supabase } from "@/lib/supabase";
 import { WaterDashboardData, DashboardAlert } from "@/types/dashboard";
 import {
@@ -10,7 +10,39 @@ import {
   Droplets,
 } from "lucide-react";
 
-export function useWaterDashboard() {
+// 1. Strictly define what this hook returns so page.tsx knows what to expect
+export interface UseWaterDashboardReturn {
+  data: WaterDashboardData | null;
+  loading: boolean;
+  dateRange: string;
+  setDateRange: Dispatch<SetStateAction<string>>;
+  markReturned: (customerId: string) => Promise<void>;
+  isNewOrderOpen: boolean;
+  setIsNewOrderOpen: Dispatch<SetStateAction<boolean>>;
+}
+
+// 2. Define the exact shape of the data coming from Supabase
+interface TxItem {
+  quantity: number;
+  container_types: { type_name: string } | null;
+}
+
+interface TxRecord {
+  transaction_id: string;
+  transaction_date: string;
+  created_at: string;
+  customer_id: string;
+  customers: { first_name: string; last_name: string } | null;
+  container_transaction_items: TxItem[];
+}
+
+interface CustRecord {
+  customer_id: string;
+  name: string;
+  outstanding_balance: number;
+}
+
+export function useWaterDashboard(): UseWaterDashboardReturn {
   // Date Filter State
   const [dateRange, setDateRange] = useState("today");
   const [data, setData] = useState<WaterDashboardData | null>(null);
@@ -20,11 +52,10 @@ export function useWaterDashboard() {
   // Mark Containers as Returned
   const markReturned = async (customerId: string) => {
     try {
-      await supabase
-        .from("customers")
-        .update({ container_balance: 0 })
-        .eq("id", customerId);
-      // Refresh dashboard after update
+      console.warn(
+        "To fully clear a balance, insert a negative transaction via RPC or direct insert.",
+      );
+      // await supabase.rpc("clear_customer_balance", { p_customer_id: customerId });
       fetchDashboard();
     } catch (error) {
       console.error("Failed to update container balance:", error);
@@ -38,7 +69,7 @@ export function useWaterDashboard() {
       const today = new Date();
       const todayStr = today.toLocaleDateString("en-CA");
 
-      // 1. Calculate dynamic dynamic date gap based on filter state
+      // Calculate dynamic date gap based on filter state
       let filterStartDate = new Date();
       let labelSuffix = "Today";
 
@@ -49,7 +80,6 @@ export function useWaterDashboard() {
         filterStartDate.setDate(today.getDate() - 30);
         labelSuffix = "Last 30 Days";
       } else {
-        // "today" fallback option
         filterStartDate = today;
         labelSuffix = "Today";
       }
@@ -64,54 +94,74 @@ export function useWaterDashboard() {
       const finalFetchStartDate =
         startDateStr < chartStartDateStr ? startDateStr : chartStartDateStr;
 
-      // 2. Fetch data from the minimum date required to cover metrics + charts
-      const { data: txData } = await supabase
-        .from("transactions")
-        .select("*")
+      // Fetch Relational Data (Header + Items + Customer)
+      const { data: txData, error: txError } = await supabase
+        .from("container_transactions")
+        .select(
+          `
+          transaction_id,
+          transaction_date,
+          created_at,
+          customer_id,
+          customers ( first_name, last_name ),
+          container_transaction_items ( quantity, container_types ( type_name ) )
+        `,
+        )
         .gte("transaction_date", finalFetchStartDate)
         .order("created_at", { ascending: false });
 
-      const { data: customersData } = await supabase
-        .from("customers")
-        .select("id, name, container_balance")
-        .gt("container_balance", 0)
-        .order("container_balance", { ascending: false });
+      if (txError) throw txError;
 
-      const transactions = txData || [];
-      const customers = customersData || [];
+      // Fetch Balances from your Normalized View
+      const { data: customersData, error: custError } = await supabase
+        .from("view_customer_container_balances")
+        .select("customer_id, name, outstanding_balance")
+        .gt("outstanding_balance", 0)
+        .order("outstanding_balance", { ascending: false });
 
-      // 3. Filter transactions to calculate metrics based on the selected window
+      if (custError) throw custError;
+
+      // Cast the raw data to our strict TypeScript interfaces
+      const transactions: TxRecord[] = (txData as unknown as TxRecord[]) || [];
+      const customers: CustRecord[] =
+        (customersData as unknown as CustRecord[]) || [];
+
+      // Filter transactions to calculate metrics based on the selected window
       const filteredTxs = transactions.filter((tx) => {
         if (dateRange === "today") {
           return tx.transaction_date === todayStr;
         }
-        // Matches anything within the selected past window down to today
         return (
           tx.transaction_date >= startDateStr && tx.transaction_date <= todayStr
         );
       });
 
-      // Aggregate Calculations for Selected Window
-      const rangeGallons = filteredTxs.reduce(
-        (sum, tx) => sum + (tx.new_gallon || 0),
-        0,
-      );
-      const rangeRevenue = rangeGallons * 45;
+      // Aggregate Calculations
+      let rangeGallons = 0;
+
+      filteredTxs.forEach((tx) => {
+        const txGallons = tx.container_transaction_items.reduce(
+          (sum: number, item: TxItem) => {
+            return item.quantity > 0 ? sum + item.quantity : sum;
+          },
+          0,
+        );
+        rangeGallons += txGallons;
+      });
+
+      const rangeRevenue = rangeGallons * 45; // Assuming 45 is your price per gallon
 
       const activeCustomerIds = new Set(
-        filteredTxs.filter((tx) => tx.customer_id).map((tx) => tx.customer_id),
+        filteredTxs.map((tx) => tx.customer_id),
       );
 
       const totalContainersOut = customers.reduce(
-        (sum, c) => sum + (c.container_balance || 0),
+        (sum, c) => sum + (c.outstanding_balance || 0),
         0,
       );
 
-      let walkInCount = 0;
-      let deliveryCount = 0;
-      filteredTxs.forEach((tx) =>
-        tx.is_walk_in ? walkInCount++ : deliveryCount++,
-      );
+      const walkInCount = 0;
+      const deliveryCount = 0;
 
       const avgSale =
         filteredTxs.length > 0 ? rangeRevenue / filteredTxs.length : 0;
@@ -119,7 +169,7 @@ export function useWaterDashboard() {
       // Action Center Warnings Logic
       const alerts: DashboardAlert[] = [];
       const overdueCustomers = customers.filter(
-        (c) => c.container_balance >= 5,
+        (c) => c.outstanding_balance >= 5,
       );
 
       if (overdueCustomers.length > 0) {
@@ -146,17 +196,27 @@ export function useWaterDashboard() {
         });
       }
 
-      // Generate Line Trends using the underlying database records
+      // Generate Line Trends
       const trendMap: Record<string, number> = {};
       transactions.forEach((tx) => {
         const date = tx.transaction_date;
         if (!trendMap[date]) trendMap[date] = 0;
-        trendMap[date] += (tx.new_gallon || 0) * 45;
+
+        const txGallons = tx.container_transaction_items.reduce(
+          (sum: number, item: TxItem) => {
+            return item.quantity > 0 ? sum + item.quantity : sum;
+          },
+          0,
+        );
+
+        trendMap[date] += txGallons * 45;
       });
+
       const revenueTrend = Object.keys(trendMap)
         .sort()
         .map((date) => ({ label: date.substring(5), value: trendMap[date] }));
 
+      // Format Data for UI
       setData({
         revenueToday: {
           label: `Revenue (${labelSuffix})`,
@@ -207,21 +267,30 @@ export function useWaterDashboard() {
           delivery: deliveryCount,
           avgSale,
         },
-        recentTransactions: transactions.slice(0, 6).map((tx) => ({
-          id: tx.id || Math.random().toString(),
-          name: tx.name || "Anonymous",
-          type: tx.type || "Standard",
-          gallons: tx.new_gallon || 0,
-          isWalkIn: tx.is_walk_in || false,
-          time: new Date(tx.created_at).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        })),
+        recentTransactions: transactions.slice(0, 6).map((tx: TxRecord) => {
+          const totalGal = tx.container_transaction_items.reduce(
+            (sum: number, item: TxItem) => sum + item.quantity,
+            0,
+          );
+
+          return {
+            id: tx.transaction_id,
+            name: tx.customers?.first_name || "Unknown",
+            type:
+              tx.container_transaction_items[0]?.container_types?.type_name ||
+              "N/A",
+            gallons: totalGal > 0 ? totalGal : 0,
+            isWalkIn: false,
+            time: new Date(tx.created_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          };
+        }),
         followUpList: customers.slice(0, 5).map((c) => ({
-          id: c.id,
+          id: c.customer_id,
           name: c.name,
-          balance: c.container_balance,
+          balance: c.outstanding_balance,
         })),
       });
     } catch (error) {

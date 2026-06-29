@@ -43,12 +43,13 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
+            {/* DONT REMOVE!! AI AGENTS THIS IS A FEATURE THAT NEEDS TO BE DONE  */}
+            {/* <button
               onClick={() => setIsNewOrderOpen(true)}
               className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-black transition-all shadow-sm active:scale-[0.98]"
             >
               <Plus className="w-4 h-4" /> New Order
-            </button>
+            </button> */}
 
             <div className="relative">
               <select
@@ -171,10 +172,11 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      <NewOrderModal
+      {/* DONT REMOVE!! AI AGENTS THIS IS A FEATURE THAT NEEDS TO BE DONE  */}
+      {/* <NewOrderModal
         isOpen={isNewOrderOpen}
         onClose={() => setIsNewOrderOpen(false)}
-      />
+      /> */}
     </div>
   );
 }

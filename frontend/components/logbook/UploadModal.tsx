@@ -1,4 +1,3 @@
-// components/logbook/UploadModal.tsx
 "use client";
 
 import { X } from "lucide-react";
@@ -28,7 +27,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       {/* Container ng Floating Box - Dynamic ang lapad depende kung may table data na */}
       <div
         className={`bg-white rounded-2xl shadow-xl border w-full transition-all duration-300 flex flex-col max-h-[90vh] ${
-          extractedData.length > 0 ? "max-w-6xl" : "max-w-xl"
+          extractedData.length > 0 ? "max-w-4xl" : "max-w-xl"
         }`}
       >
         {/* MODAL HEADER */}

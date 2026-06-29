@@ -24,7 +24,7 @@ export default function ContainersPage() {
       </div>
 
       {/* Passing the height prop directly from the page layout */}
-      <UnreturnedContainersList className="max-h-180" />
+      <UnreturnedContainersList className="max-h-140" />
     </main>
   );
 }

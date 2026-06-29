@@ -4,10 +4,8 @@ export interface ExtractedLog {
   id: number;
   date: string;
   name: string;
-  newGallon: number;
-  oldGallon: number;
+  quantity: number;
   type: string;
-  address: string;
 }
 
 export interface FileUploadDropzoneProps {
