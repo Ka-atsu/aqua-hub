@@ -1,4 +1,3 @@
-// app/analytics/page.tsx
 "use client";
 
 import { useAnalytics } from "@/hooks/useAnalytics";
@@ -30,6 +29,12 @@ export default function AnalyticsPage() {
   };
 
   const currentRangeLabel = rangeLabels[range] || "Unknown Period";
+
+  // Map daily trend to include the required 'label' property for the charts
+  const chartData = data.dailyTrend.map((d) => ({
+    ...d,
+    label: (d as any).date || "",
+  }));
 
   return (
     <div className="h-screen bg-ink-base text-ink-dark overflow-hidden flex flex-col transition-colors duration-500">
@@ -98,16 +103,12 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Revenue Trend */}
           <Panel title="Revenue Trend" className="lg:col-span-2">
-            {data.dailyTrend.length === 0 ? (
+            {chartData.length === 0 ? (
               <p className="text-sm text-ink-muted">No data for this period.</p>
             ) : (
               <>
-                <BarChart
-                  data={data.dailyTrend}
-                  valueKey="revenue"
-                  color="#00D084"
-                />
-                <AxisLabels data={data.dailyTrend} />
+                <BarChart data={chartData} valueKey="revenue" color="#00D084" />
+                <AxisLabels data={chartData} />
               </>
             )}
           </Panel>
@@ -147,16 +148,12 @@ export default function AnalyticsPage() {
 
         {/* GALLONS TREND */}
         <Panel title="Gallons Delivered per Day">
-          {data.dailyTrend.length === 0 ? (
+          {chartData.length === 0 ? (
             <p className="text-sm text-ink-muted">No data for this period.</p>
           ) : (
             <>
-              <BarChart
-                data={data.dailyTrend}
-                valueKey="gallons"
-                color="#0A4C5A"
-              />
-              <AxisLabels data={data.dailyTrend} />
+              <BarChart data={chartData} valueKey="gallons" color="#0A4C5A" />
+              <AxisLabels data={chartData} />
             </>
           )}
         </Panel>
