@@ -1,7 +1,7 @@
 // app/transactions/page.tsx
 "use client";
 
-import { useOrders } from "@/hooks/useOrders";
+import { useTransaction } from "@/hooks/useTransaction";
 import { Plus, Search, ChevronDown } from "lucide-react";
 import { OrderModal, OrderRow } from "@/components/transactions/TransactionUI";
 
@@ -24,7 +24,7 @@ export default function TransactionsPage() {
     closeModal,
     saveOrder,
     deleteOrder,
-  } = useOrders();
+  } = useTransaction();
 
   return (
     <div className="h-screen bg-ink-base text-ink-dark overflow-hidden flex flex-col transition-colors duration-500">

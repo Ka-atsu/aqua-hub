@@ -69,19 +69,20 @@ export interface DailySummary {
 }
 
 export interface WaterDashboardData {
-  revenueToday: KpiMetric;
-  txToday: KpiMetric;
-  activeCustomers: KpiMetric;
-  containersOut: KpiMetric;
-  gallonsToday: KpiMetric;
-  historicalTrends: ChartDataPoint[];
+  revenueToday: any;
+  txToday: any;
+  activeCustomers: any;
+  containersOut: any;
+  gallonsToday: any;
+  historicalTrends?: ChartDataPoint[];
   walkInSplit: { walkIn: number; delivery: number };
-  alerts: DashboardAlert[];
-  summary: DailySummary;
-  recentTransactions: TransactionSummary[];
-  followUpList: CustomerContainerDebt[];
+  alerts: any[];
+  summary: any;
+  recentTransactions: any[];
+  followUpList: any[];
+  recentTrend: ChartDataPoint[];
+  worstOffenders?: { name: string; balance: number; lastSeen?: string }[];
 }
-
 export interface AnalyticsViewRecord {
   transaction_id: string;
   transaction_date: string;

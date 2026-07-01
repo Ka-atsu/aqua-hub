@@ -58,7 +58,7 @@ const DEFAULT_FORM: OrderFormData = {
   newContact: "",
 };
 
-export function useOrders() {
+export function useTransaction() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);

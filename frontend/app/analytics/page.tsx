@@ -3,17 +3,17 @@
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { AnalyticsRange } from "@/types/analytics";
 import { ChevronDown } from "lucide-react";
+import { AnalyticsChart } from "@/components/dashboard/AnalyticsChart";
 import {
   StatCard,
   Panel,
   BarChart,
   AxisLabels,
-} from "@/components/analytics/AnalyticsUI";
+} from "@/components/dashboard/AnalyticsUI";
 
 export default function AnalyticsPage() {
   const { data, loading, range, setRange } = useAnalytics();
 
-  // LOADING STATE
   if (loading || !data) {
     return (
       <div className="h-screen bg-ink-base flex items-center justify-center text-ink-muted font-medium animate-pulse">
@@ -30,7 +30,6 @@ export default function AnalyticsPage() {
 
   const currentRangeLabel = rangeLabels[range] || "Unknown Period";
 
-  // Map daily trend to include the required 'label' property for the charts
   const chartData = data.dailyTrend.map((d) => ({
     ...d,
     label: (d as any).date || "",
@@ -46,7 +45,7 @@ export default function AnalyticsPage() {
               Analytics
             </h1>
             <p className="text-sm text-ink-muted font-medium">
-              {currentRangeLabel}
+              Business intelligence & performance
             </p>
           </div>
 
@@ -64,7 +63,7 @@ export default function AnalyticsPage() {
           </div>
         </header>
 
-        {/* KPI ROW */}
+        {/* KPI ROW (Strategic focus) */}
         <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <StatCard
             accent
@@ -95,9 +94,14 @@ export default function AnalyticsPage() {
           <StatCard
             label="Return Rate"
             value={`${data.containerReturnRate}%`}
-            sub="Containers returned"
+            sub="Containers returned overall"
           />
         </section>
+
+        {/* INTEGRATED DETAILED ANALYTICS CHART */}
+        <div className="w-full">
+          <AnalyticsChart chartData={chartData || []} chartHeight={400} />
+        </div>
 
         {/* CHARTS ROW */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -114,7 +118,7 @@ export default function AnalyticsPage() {
           </Panel>
 
           {/* Type Breakdown */}
-          <Panel title="Container Type">
+          <Panel title="Container Type Distribution">
             <div className="space-y-4">
               {data.typeBreakdown.map((t) => {
                 const totalTx = data.totalTransactions || 1;
@@ -146,22 +150,22 @@ export default function AnalyticsPage() {
           </Panel>
         </div>
 
-        {/* GALLONS TREND */}
-        <Panel title="Gallons Delivered per Day">
-          {chartData.length === 0 ? (
-            <p className="text-sm text-ink-muted">No data for this period.</p>
-          ) : (
-            <>
-              <BarChart data={chartData} valueKey="gallons" color="#0A4C5A" />
-              <AxisLabels data={chartData} />
-            </>
-          )}
-        </Panel>
-
-        {/* BOTTOM ROW */}
+        {/* BOTTOM ROW: VOLUME & LOYALTY */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
+          {/* GALLONS TREND */}
+          <Panel title="Gallons Delivered Trend">
+            {chartData.length === 0 ? (
+              <p className="text-sm text-ink-muted">No data for this period.</p>
+            ) : (
+              <>
+                <BarChart data={chartData} valueKey="gallons" color="#0A4C5A" />
+                <AxisLabels data={chartData} />
+              </>
+            )}
+          </Panel>
+
           {/* Top Customers */}
-          <Panel title="Top Customers by Revenue">
+          <Panel title="Top Customers by Revenue (CLV)">
             {data.topCustomers.length === 0 ? (
               <p className="text-sm text-ink-muted">No customer data found.</p>
             ) : (
@@ -200,47 +204,6 @@ export default function AnalyticsPage() {
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
-          </Panel>
-
-          {/* Container Offenders */}
-          <Panel title="Unreturned Containers — Top Offenders">
-            {data.worstOffenders.length === 0 ? (
-              <p className="text-sm text-ink-muted">
-                All containers accounted for.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {data.worstOffenders.map((c, i) => {
-                  const maxBalance = data.worstOffenders[0].balance || 1;
-                  const pct = Math.round((c.balance / maxBalance) * 100);
-                  return (
-                    <div key={i} className="flex items-center gap-4">
-                      <div className="w-28 shrink-0">
-                        <p className="text-sm font-bold text-ink-black truncate">
-                          {c.name}
-                        </p>
-                        {c.lastSeen && (
-                          <p className="text-[10px] text-ink-muted font-semibold">
-                            Updated {c.lastSeen}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="w-full bg-ink-dark/5 rounded-full h-2">
-                          <div
-                            className="h-2 rounded-full bg-orange-400 transition-all duration-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                      <span className="text-sm font-extrabold text-orange-600 w-8 text-right shrink-0">
-                        {c.balance}
-                      </span>
-                    </div>
-                  );
-                })}
               </div>
             )}
           </Panel>

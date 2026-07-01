@@ -1,6 +1,6 @@
 // components/transactions/TransactionUI.tsx
 import React from "react";
-import { Order, OrderFormData, Customer } from "@/hooks/useOrders";
+import { Order, OrderFormData, Customer } from "@/hooks/useTransaction";
 import { X, Pencil, Trash2, AlertCircle, UserPlus } from "lucide-react";
 
 // --- REUSABLE FIELD ---

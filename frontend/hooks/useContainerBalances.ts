@@ -46,6 +46,7 @@ export function useContainerBalances(pageSize = 50) {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
+      // 1. Fetch paginated customer data from the View
       const {
         data,
         error: dbError,
@@ -60,6 +61,7 @@ export function useContainerBalances(pageSize = 50) {
       if (dbError) throw dbError;
       if (count !== null) setTotalCount(count);
 
+      // 2. Fetch all outstanding balances for the global insights
       const { data: allBalances, error: sumError } = await supabase
         .from("view_customer_container_balances")
         .select("outstanding_balance")
@@ -73,12 +75,16 @@ export function useContainerBalances(pageSize = 50) {
         setGlobalTotalContainers(total);
       }
 
+      // 3. Format the data for the UI
       const formattedBalances: ContainerBalance[] = (data || []).map((row) => ({
         id: row.customer_id,
         customerName: row.name || "Unknown Customer",
         phoneNumber: row.contact_number || null,
         outstandingBalance: row.outstanding_balance || 0,
-        lastActivityDate: new Date().toISOString(), // In normalized schema, track via latest transaction timestamp
+        // 👇 UPDATED: Now uses the real date from the database view!
+        lastActivityDate: row.last_activity_date
+          ? new Date(row.last_activity_date).toISOString()
+          : new Date().toISOString(),
       }));
 
       setBalances(formattedBalances);

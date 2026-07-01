@@ -3,7 +3,6 @@ import { useState, useEffect, Dispatch, SetStateAction } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   WaterDashboardData,
-  ChartDataPoint,
   AnalyticsViewRecord,
   CustRecord,
 } from "@/types/dashboard";
@@ -63,14 +62,6 @@ export function useWaterDashboard(): UseWaterDashboardReturn {
 
       const startDateStr = filterStartDate.toLocaleDateString("en-CA");
 
-      // Always fetch at least 7 days for the chart to render a baseline
-      const chartStartDate = new Date();
-      chartStartDate.setDate(today.getDate() - 7);
-      const chartStartDateStr = chartStartDate.toLocaleDateString("en-CA");
-
-      const finalFetchStartDate =
-        startDateStr < chartStartDateStr ? startDateStr : chartStartDateStr;
-
       // 1. Fetch directly from your new view
       const { data: viewData, error: viewError } = await supabase
         .from("view_dashboard_analytics")
@@ -85,7 +76,7 @@ export function useWaterDashboard(): UseWaterDashboardReturn {
             type_name
           `,
         )
-        .gte("transaction_date", finalFetchStartDate)
+        .gte("transaction_date", startDateStr)
         .order("transaction_date", { ascending: false });
 
       if (viewError) throw viewError;
@@ -139,60 +130,7 @@ export function useWaterDashboard(): UseWaterDashboardReturn {
       const avgSale =
         filteredTxs.length > 0 ? rangeRevenue / filteredTxs.length : 0;
 
-      // 4. Generate Line Trends for the AnalyticsChart
-      const historyMap: Record<string, ChartDataPoint> = {};
-
-      // Pre-fill 7 days with zeros to prevent Recharts from collapsing
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        const fullDate = d.toLocaleDateString("en-CA");
-        const shortDate = fullDate.substring(5);
-        historyMap[fullDate] = {
-          date: shortDate,
-          revenue: 0,
-          gallons: 0,
-          returned: 0,
-        };
-      }
-
-      transactions.forEach((tx) => {
-        const fullDate = tx.transaction_date;
-        const shortDate = fullDate?.substring(5) || "00-00";
-
-        if (!historyMap[fullDate]) {
-          historyMap[fullDate] = {
-            date: shortDate,
-            revenue: 0,
-            gallons: 0,
-            returned: 0,
-          };
-        }
-
-        // Bulletproof parsing
-        const safeQuantity = Number(tx.quantity) || 0;
-        const safeAmount =
-          tx.amount !== undefined && tx.amount !== null
-            ? Number(tx.amount)
-            : safeQuantity > 0
-              ? safeQuantity * 45
-              : 0;
-
-        if (safeQuantity > 0) {
-          historyMap[fullDate].gallons += safeQuantity;
-        } else if (safeQuantity < 0) {
-          historyMap[fullDate].returned += Math.abs(safeQuantity);
-        }
-
-        historyMap[fullDate].revenue += safeAmount;
-      });
-
-      // Flatten and sort chronologically for the chart
-      const historicalTrends = Object.keys(historyMap)
-        .sort()
-        .map((key) => historyMap[key]);
-
-      // 5. Final Output to Dashboard
+      // 4. Final Output to Dashboard
       setData({
         revenueToday: {
           label: `Revenue (${labelSuffix})`,
@@ -233,7 +171,14 @@ export function useWaterDashboard(): UseWaterDashboardReturn {
           trendTone: "positive",
         },
 
-        historicalTrends,
+        // Chart data is removed, returning empty arrays to satisfy TS interface
+        historicalTrends: [],
+        recentTrend: [],
+
+        worstOffenders: customers.slice(0, 5).map((c) => ({
+          name: c.name || "Unknown Customer",
+          balance: c.outstanding_balance || 0,
+        })),
 
         walkInSplit: { walkIn: 0, delivery: filteredTxs.length },
         alerts: [],

@@ -1,68 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-
-export type AnalyticsRange = "7days" | "30days" | "90days";
-
-export interface DailyRevenue {
-  date: string; // FIXED: Must be 'date' for the chart to read it
-  revenue: number;
-  gallons: number;
-  transactions: number;
-  returned: number; // FIXED: Added to prevent chart errors
-}
-
-export interface TopCustomer {
-  id: string;
-  name: string;
-  totalSpend: number;
-  totalGallons: number;
-  orderCount: number;
-  avgOrderValue: number;
-}
-
-export interface ContainerStat {
-  name: string;
-  balance: number;
-  lastSeen: string | null;
-}
-
-export interface TypeBreakdown {
-  type: string;
-  count: number;
-  gallons: number;
-  revenue: number;
-}
-
-export interface AnalyticsData {
-  totalRevenue: number;
-  totalGallons: number;
-  totalTransactions: number;
-  uniqueCustomers: number;
-  avgOrderValue: number;
-  avgDailyRevenue: number;
-  dailyTrend: DailyRevenue[];
-  typeBreakdown: TypeBreakdown[];
-  topCustomers: TopCustomer[];
-  newCustomers: number;
-  returningCustomers: number;
-  totalContainersOut: number;
-  worstOffenders: ContainerStat[];
-  containerReturnRate: number;
-}
-
-interface OrderRecord {
-  transaction_id: string;
-  item_id: string;
-  transaction_date: string;
-  customer_id: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  quantity: number;
-  amount: number;
-  is_walk_in: boolean;
-  container_type_id: number;
-}
+import {
+  AnalyticsRange,
+  AnalyticsData,
+  DailyTrend,
+  TypeBreakdown,
+  TopCustomer,
+  Offender,
+  OrderRecord,
+} from "@/types/analytics";
 
 export function useAnalytics() {
   const [range, setRange] = useState<AnalyticsRange>("30days");
@@ -101,21 +48,23 @@ export function useAnalytics() {
         (txData as unknown as OrderRecord[]) || [];
       const customers = customersData || [];
 
-      // ── HELPER: Bulletproof Data Extractor ────────────────────────────
-      // Safely handles nulls, undefined, and missing amount data
+      // HELPER: Bulletproof Data Extractor
       const getSafeMetrics = (tx: OrderRecord) => ({
         qty: tx.quantity,
         amt: tx.amount,
       });
 
-      // ── Revenue & Gallons ─────────────────────────────────────────────
+      // Revenue & Gallons
       let totalRevenue = 0;
       let totalGallons = 0;
 
       transactions.forEach((tx) => {
         const { qty, amt } = getSafeMetrics(tx);
-        if (qty > 0) totalGallons += qty;
-        totalRevenue += amt;
+        // Only count deliveries towards gallons and revenue, ignore returns
+        if (qty > 0) {
+          totalGallons += qty;
+          totalRevenue += amt;
+        }
       });
 
       const totalTransactions = transactions.length;
@@ -123,7 +72,7 @@ export function useAnalytics() {
         totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
       const avgDailyRevenue = totalRevenue / daysOffset;
 
-      // ── Daily Trend (Pre-filled with 0s to prevent chart collapse) ────
+      // Daily Trend (Pre-filled with 0s to keep chart lines continuous)
       const trendMap: Record<
         string,
         {
@@ -159,17 +108,17 @@ export function useAnalytics() {
           };
         }
 
-        trendMap[d].revenue += amt;
         trendMap[d].transactions += 1;
 
         if (qty > 0) {
           trendMap[d].gallons += qty;
+          trendMap[d].revenue += amt; // Add revenue only on deliveries
         } else if (qty < 0) {
           trendMap[d].returned += Math.abs(qty);
         }
       });
 
-      const dailyTrend: DailyRevenue[] = Object.keys(trendMap)
+      const dailyTrend: DailyTrend[] = Object.keys(trendMap)
         .sort()
         .map((date) => ({
           date: date.substring(5), // MM-DD mapped to 'date' for the chart
@@ -179,7 +128,7 @@ export function useAnalytics() {
           returned: trendMap[date].returned,
         }));
 
-      // ── Type Breakdown ────────────────────────────────────────────────
+      // Type Breakdown
       const typeMap: Record<
         string,
         { count: number; gallons: number; revenue: number }
@@ -195,66 +144,40 @@ export function useAnalytics() {
         }
 
         typeMap[normalized].count += 1;
-        if (qty > 0) typeMap[normalized].gallons += qty;
-        typeMap[normalized].revenue += amt;
+        if (qty > 0) {
+          typeMap[normalized].gallons += qty;
+          typeMap[normalized].revenue += amt;
+        }
       });
 
       const typeBreakdown: TypeBreakdown[] = Object.entries(typeMap).map(
         ([type, stats]) => ({ type, ...stats }),
       );
 
-      // ── Customer Analytics (exclude walk-ins) ─────────────────────────
-      const nonWalkIn = transactions.filter(
-        (tx) => !tx.is_walk_in && tx.customer_id,
+      const { data: topCustomersData } = await supabase
+        .from("view_analytics_top_customers")
+        .select("*")
+        .limit(10);
+
+      const topCustomers: TopCustomer[] = (topCustomersData || []).map(
+        (c: any) => ({
+          id: c.id,
+          name: c.name || "Unknown",
+          totalSpend: Number(c.total_spend) || 0,
+          totalGallons: Number(c.total_gallons) || 0,
+          orderCount: Number(c.order_count) || 0,
+          avgOrderValue: Number(c.avg_order_value) || 0,
+        }),
       );
 
-      const customerMap: Record<
-        string,
-        {
-          name: string;
-          totalSpend: number;
-          totalGallons: number;
-          orderCount: number;
-        }
-      > = {};
+      // Keep this for your New vs Returning logic just below
+      const nonWalkInIds = transactions
+        .filter((tx) => !tx.is_walk_in && tx.customer_id)
+        .map((tx) => tx.customer_id!);
 
-    nonWalkIn.forEach((tx) => {
-      const id = tx.customer_id!;
-      const { qty, amt } = getSafeMetrics(tx);
+      const customerIdsInRange = new Set(nonWalkInIds);
+      const uniqueCustomers = customerIdsInRange.size;
 
-      if (!customerMap[id]) {
-        customerMap[id] = {
-          name:
-            `${tx.first_name ?? ""} ${tx.last_name ?? ""}`.trim() || "Unknown",
-          totalSpend: 0,
-          totalGallons: 0,
-          orderCount: 0,
-        };
-      }
-
-      customerMap[id].totalSpend += amt;
-
-      if (qty > 0) {
-        customerMap[id].totalGallons += qty;
-      }
-
-      customerMap[id].orderCount += 1;
-    });
-
-      const topCustomers: TopCustomer[] = Object.entries(customerMap)
-        .map(([id, stats]) => ({
-          id,
-          ...stats,
-          avgOrderValue:
-            stats.orderCount > 0 ? stats.totalSpend / stats.orderCount : 0,
-        }))
-        .sort((a, b) => b.totalSpend - a.totalSpend)
-        .slice(0, 10);
-
-      const uniqueCustomers = Object.keys(customerMap).length;
-
-      // ── New vs Returning logic using 'orders' table ───────────────────
-      const customerIdsInRange = new Set(Object.keys(customerMap));
       const { data: prevTxData } = await supabase
         .from("view_order_summary")
         .select("customer_id")
@@ -272,13 +195,13 @@ export function useAnalytics() {
         else newCustomers++;
       });
 
-      // ── Container Analytics ───────────────────────────────────────────
+      // Container Analytics
       const totalContainersOut = customers.reduce(
         (sum, c) => sum + (c.outstanding_balance || 0),
         0,
       );
 
-      const worstOffenders: ContainerStat[] = customers
+      const worstOffenders: Offender[] = customers
         .filter((c) => c.outstanding_balance > 0)
         .slice(0, 8)
         .map((c) => ({
@@ -287,7 +210,6 @@ export function useAnalytics() {
           lastSeen: null,
         }));
 
-      // Safely set to 0 until return tracking logic in 'orders' is finalized
       const containerReturnRate = 0;
 
       setData({

@@ -1,9 +1,10 @@
 "use client";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useWaterDashboard } from "@/hooks/useWaterDashboard";
 import { KpiCard } from "@/components/dashboard/DashboardUI";
-import { AnalyticsChart } from "@/components/dashboard/AnalyticsChart";
+import { Panel } from "@/components/dashboard/AnalyticsUI";
 import { ChevronDown } from "lucide-react";
 
 export default function DashboardPage() {
@@ -70,12 +71,49 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        {/* MAIN LAYOUT: Analytics Chart */}
-        <div className="w-full pb-8">
-          <AnalyticsChart
-            chartData={data.historicalTrends || []}
-            chartHeight={500} // FIX: Now you can control the height of the chart dynamically!
-          />
+        {/* OPERATIONAL SNAPSHOT ROW */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
+          {/* Actionable: Container Offenders */}
+          <Panel title="Action Required: Unreturned Containers">
+            {!data.worstOffenders || data.worstOffenders.length === 0 ? (
+              <p className="text-sm text-ink-muted">
+                All containers accounted for today.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {data.worstOffenders.map((c: any, i: number) => {
+                  // SAFELY access the first item using optional chaining
+                  const maxBalance = data.worstOffenders?.[0]?.balance || 1;
+                  const pct = Math.round((c.balance / maxBalance) * 100);
+                  return (
+                    <div key={i} className="flex items-center gap-4">
+                      <div className="w-28 shrink-0">
+                        <p className="text-sm font-bold text-ink-black truncate">
+                          {c.name}
+                        </p>
+                        {c.lastSeen && (
+                          <p className="text-[10px] text-ink-muted font-semibold">
+                            Due: {c.lastSeen}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="w-full bg-ink-dark/5 rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full bg-orange-400 transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-sm font-extrabold text-orange-600 w-8 text-right shrink-0">
+                        {c.balance}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
         </div>
       </main>
     </div>
