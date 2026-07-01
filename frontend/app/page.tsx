@@ -18,9 +18,6 @@ export default function DashboardPage() {
     );
   }
 
-  // DEBUG: This will print the exact array right before it enters the chart
-  console.log("Data entering AnalyticsChart:", data.historicalTrends);
-
   return (
     <div className="h-screen bg-ink-base text-ink-dark overflow-hidden flex flex-col transition-colors duration-500">
       <main className="p-6 md:p-8 space-y-8 flex-1 overflow-y-auto">
@@ -74,9 +71,11 @@ export default function DashboardPage() {
         </section>
 
         {/* MAIN LAYOUT: Analytics Chart */}
-        {/* FIXED: Removed h-auto, added a strict h-[500px] and min-h-0 to prevent flexbox collapsing */}
-        <div className="w-full h-[500px] min-h-0">
-          <AnalyticsChart chartData={data.historicalTrends || []} />
+        <div className="w-full pb-8">
+          <AnalyticsChart
+            chartData={data.historicalTrends || []}
+            chartHeight={500} // FIX: Now you can control the height of the chart dynamically!
+          />
         </div>
       </main>
     </div>

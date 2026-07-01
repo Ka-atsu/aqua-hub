@@ -3,8 +3,9 @@ import { useState, useEffect, Dispatch, SetStateAction } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   WaterDashboardData,
-  DashboardAlert,
   ChartDataPoint,
+  AnalyticsViewRecord,
+  CustRecord,
 } from "@/types/dashboard";
 import {
   Banknote,
@@ -22,24 +23,6 @@ export interface UseWaterDashboardReturn {
   markReturned: (customerId: string) => Promise<void>;
   isNewOrderOpen: boolean;
   setIsNewOrderOpen: Dispatch<SetStateAction<boolean>>;
-}
-
-// Matches the exact output of your view_dashboard_analytics
-interface AnalyticsViewRecord {
-  transaction_id: string;
-  transaction_date: string;
-  customer_id: string;
-  customer_name: string | null;
-  quantity: number | null;
-  container_type_id: number | null;
-  amount?: number | null;
-  type_name: string | null;
-}
-
-interface CustRecord {
-  customer_id: string;
-  name: string;
-  outstanding_balance: number;
 }
 
 export function useWaterDashboard(): UseWaterDashboardReturn {
@@ -91,7 +74,17 @@ export function useWaterDashboard(): UseWaterDashboardReturn {
       // 1. Fetch directly from your new view
       const { data: viewData, error: viewError } = await supabase
         .from("view_dashboard_analytics")
-        .select("*")
+        .select(
+          `
+            transaction_id,
+            transaction_date,
+            customer_id,
+            customer_name,
+            quantity,
+            container_type_id,
+            type_name
+          `,
+        )
         .gte("transaction_date", finalFetchStartDate)
         .order("transaction_date", { ascending: false });
 

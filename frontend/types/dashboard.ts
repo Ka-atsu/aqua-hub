@@ -32,9 +32,9 @@ export interface KpiMetric {
 
 export interface ChartDataPoint {
   date: string; // e.g., "Mon", "2026-06-01"
-  revenue: number; // Absolute dollar value
-  gallons: number; // Volumetric performance
-  returned: number; // Container return tracking
+  revenue: number;
+  gallons: number;
+  returned: number;
 }
 
 export interface TransactionSummary {
@@ -52,43 +52,6 @@ export interface CustomerContainerDebt {
   balance: number;
 }
 
-// export interface WaterDashboardData {
-//   revenueToday: KpiMetric;
-//   txToday: KpiMetric;
-//   activeCustomers: KpiMetric;
-//   containersOut: KpiMetric;
-//   gallonsToday: KpiMetric;
-//   revenueTrend: ChartDataPoint[];
-//   walkInSplit: { walkIn: number; delivery: number };
-//   recentTransactions: TransactionSummary[];
-//   followUpList: CustomerContainerDebt[];
-//   historicalTrends: ChartDataPoint[];
-//   alerts: DashboardAlert[];
-//   summary: DailySummary;
-// }
-
-// @/types/dashboard.ts
-
-export interface WaterDashboardData {
-  revenueToday: KpiMetric;
-  txToday: KpiMetric;
-  activeCustomers: KpiMetric;
-  containersOut: KpiMetric;
-  gallonsToday: KpiMetric;
-  
-  // 1. ADD THIS:
-  historicalTrends: ChartDataPoint[]; 
-
-  // 2. DELETE OR COMMENT OUT THIS LINE:
-  // revenueTrend: { label: string; value: number }[]; 
-  
-  walkInSplit: { walkIn: number; delivery: number };
-  alerts: DashboardAlert[];
-  summary: any; 
-  recentTransactions: any[];
-  followUpList: any[];
-}
-
 export interface DashboardAlert {
   id: string;
   type: "warning" | "success" | "info";
@@ -103,4 +66,35 @@ export interface DailySummary {
   walkIn: number;
   delivery: number;
   avgSale: number;
+}
+
+export interface WaterDashboardData {
+  revenueToday: KpiMetric;
+  txToday: KpiMetric;
+  activeCustomers: KpiMetric;
+  containersOut: KpiMetric;
+  gallonsToday: KpiMetric;
+  historicalTrends: ChartDataPoint[];
+  walkInSplit: { walkIn: number; delivery: number };
+  alerts: DashboardAlert[];
+  summary: DailySummary;
+  recentTransactions: TransactionSummary[];
+  followUpList: CustomerContainerDebt[];
+}
+
+export interface AnalyticsViewRecord {
+  transaction_id: string;
+  transaction_date: string;
+  customer_id: string;
+  customer_name: string | null;
+  quantity: number | null;
+  container_type_id: number | null;
+  amount?: number | null;
+  type_name: string | null;
+}
+
+export interface CustRecord {
+  customer_id: string;
+  name: string;
+  outstanding_balance: number;
 }

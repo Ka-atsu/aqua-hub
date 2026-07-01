@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -21,137 +21,180 @@ export interface ChartDataPoint {
 
 interface AnalyticsChartProps {
   chartData: ChartDataPoint[];
+  // ADDED: Props to control sizing from the parent
+  chartHeight?: number | string;
+  className?: string;
 }
 
-export function AnalyticsChart({ chartData }: AnalyticsChartProps) {
-  const [metricMode, setMetricMode] = useState<"volume" | "revenue">("volume");
-
+export function AnalyticsChart({
+  chartData,
+  chartHeight = 320, // Defaults to 320px if no prop is provided
+  className = "",
+}: AnalyticsChartProps) {
   return (
     <section
-      aria-label="Operational Trends Chart"
-      className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm flex flex-col h-full min-h-[460px]"
+      aria-label="Operational Trends Charts"
+      className={`grid grid-cols-1 lg:grid-cols-2 gap-6 w-full ${className}`}
     >
-      {/* Chart Header Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4 mb-6">
-        <div>
+      {/* ---------------------------------------------------- */}
+      {/* CHART 1: WATER & CONTAINERS (VOLUME)                 */}
+      {/* ---------------------------------------------------- */}
+      <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm flex flex-col h-full">
+        <div className="border-b border-gray-100 pb-4 mb-6">
           <h2 className="text-gray-900 font-bold text-lg tracking-tight">
-            Operational Performance
+            Water & Containers
           </h2>
           <p className="text-xs text-gray-500 font-medium mt-0.5">
-            Volumetric loops and financial trend tracking
+            Volumetric loops and container tracking
           </p>
         </div>
 
-        {/* Segmented Switcher Control */}
-        <div className="flex p-1 bg-gray-50 rounded-xl border border-gray-200 self-start sm:self-center">
-          <button
-            type="button"
-            onClick={() => setMetricMode("volume")}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              metricMode === "volume"
-                ? "bg-white text-gray-900 shadow-sm border border-gray-200"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Water & Containers
-          </button>
-          <button
-            type="button"
-            onClick={() => setMetricMode("revenue")}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              metricMode === "revenue"
-                ? "bg-white text-gray-900 shadow-sm border border-gray-200"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Revenue Stream
-          </button>
+        <div
+          className="flex-1 w-full h-full text-xs font-semibold"
+          style={{ minHeight: chartHeight }} // FIX: Height is now dynamic via prop
+        >
+          {chartData.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-gray-400">
+              No historical data available.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="colorGallons" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0A4C5A" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#0A4C5A" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient
+                    id="colorReturned"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="5%" stopColor="#00D084" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#00D084" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#F3F4F6"
+                />
+                <XAxis
+                  dataKey="date"
+                  stroke="#9CA3AF"
+                  tickLine={false}
+                  dy={10}
+                />
+                <YAxis stroke="#9CA3AF" tickLine={false} dx={-5} />
+
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: "12px",
+                    borderColor: "#E5E7EB",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+                  }}
+                />
+                <Legend verticalAlign="top" height={36} iconType="circle" />
+
+                <Area
+                  name="Gallons Dispatched"
+                  type="monotone"
+                  dataKey="gallons"
+                  stroke="#0A4C5A"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#colorGallons)"
+                />
+                <Area
+                  name="Containers Returned"
+                  type="monotone"
+                  dataKey="returned"
+                  stroke="#00D084"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#colorReturned)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
-      {/* Chart Canvas Area */}
-      {/* FIXED: Added style={{ minHeight: 320, height: "100%" }} to force Recharts to render */}
-      <div
-        className="flex-1 w-full h-full text-xs font-semibold"
-        style={{ minHeight: 320, height: "100%" }}
-      >
-        {chartData.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-gray-400">
-            No historical data available for this range.
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="colorGallons" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0A4C5A" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#0A4C5A" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorReturned" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#00D084" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#00D084" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#111827" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#111827" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+      {/* ---------------------------------------------------- */}
+      {/* CHART 2: REVENUE STREAM                              */}
+      {/* ---------------------------------------------------- */}
+      <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm flex flex-col h-full">
+        <div className="border-b border-gray-100 pb-4 mb-6">
+          <h2 className="text-gray-900 font-bold text-lg tracking-tight">
+            Revenue Stream
+          </h2>
+          <p className="text-xs text-gray-500 font-medium mt-0.5">
+            Financial gross trend tracking
+          </p>
+        </div>
 
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke="#F3F4F6"
-              />
+        <div
+          className="flex-1 w-full h-full text-xs font-semibold"
+          style={{ minHeight: chartHeight }} // FIX: Height is now dynamic via prop
+        >
+          {chartData.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-gray-400">
+              No historical data available.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#111827" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#111827" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
 
-              <XAxis dataKey="date" stroke="#9CA3AF" tickLine={false} dy={10} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#F3F4F6"
+                />
+                <XAxis
+                  dataKey="date"
+                  stroke="#9CA3AF"
+                  tickLine={false}
+                  dy={10}
+                />
+                <YAxis
+                  stroke="#9CA3AF"
+                  tickLine={false}
+                  dx={-5}
+                  tickFormatter={(val) => `₱${val}`}
+                />
 
-              <YAxis
-                stroke="#9CA3AF"
-                tickLine={false}
-                dx={-5}
-                tickFormatter={(val) =>
-                  metricMode === "revenue" ? `$${val}` : val
-                }
-              />
+                <Tooltip
+                  formatter={(value: any) => [
+                    `₱${Number(value).toLocaleString()}`,
+                    "Gross Revenue",
+                  ]}
+                  contentStyle={{
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: "12px",
+                    borderColor: "#E5E7EB",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+                  }}
+                />
+                <Legend verticalAlign="top" height={36} iconType="circle" />
 
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#FFFFFF",
-                  borderRadius: "12px",
-                  borderColor: "#E5E7EB",
-                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
-                }}
-              />
-
-              <Legend verticalAlign="top" height={36} iconType="circle" />
-
-              {metricMode === "volume" ? (
-                <>
-                  <Area
-                    name="Gallons Dispatched"
-                    type="monotone"
-                    dataKey="gallons"
-                    stroke="#0A4C5A"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#colorGallons)"
-                  />
-                  <Area
-                    name="Containers Returned"
-                    type="monotone"
-                    dataKey="returned"
-                    stroke="#00D084"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#colorReturned)"
-                  />
-                </>
-              ) : (
                 <Area
-                  name="Gross Revenue ($)"
+                  name="Gross Revenue"
                   type="monotone"
                   dataKey="revenue"
                   stroke="#111827"
@@ -159,10 +202,10 @@ export function AnalyticsChart({ chartData }: AnalyticsChartProps) {
                   fillOpacity={1}
                   fill="url(#colorRevenue)"
                 />
-              )}
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
     </section>
   );

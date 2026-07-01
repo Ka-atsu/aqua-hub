@@ -124,6 +124,7 @@ export default function TransactionsPage() {
                 No orders found. Try adjusting your filters.
               </div>
             ) : (
+              // FIX: Removed the extra `{` and `}` that were wrapping orders.map
               orders.map((order) => {
                 // Optimized Name Lookup
                 const matchedCustomer = customers.find(
@@ -137,16 +138,16 @@ export default function TransactionsPage() {
 
                 return (
                   <OrderRow
-                    key={order.id}
+                    key={order.transaction_id}
                     order={{
                       ...order,
-                      is_walk_in: order.is_walk_in ?? false, // Force it to be false if missing
+                      is_walk_in: order.is_walk_in ?? false,
                     }}
                     customers={customers}
                     onEdit={() => openEdit(order)}
                     onDelete={() => {
                       if (confirm(`Delete order for ${customerName}?`))
-                        deleteOrder(order.id);
+                        deleteOrder(order.transaction_id);
                     }}
                   />
                 );

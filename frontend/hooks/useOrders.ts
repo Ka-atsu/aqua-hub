@@ -10,7 +10,8 @@ export interface Customer {
 }
 
 export interface Order {
-  id: string;
+  item_id: string;
+  transaction_id: string;
   customer_id: string | null;
   transaction_date: string;
   container_type_id: number;
