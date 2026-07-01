@@ -16,6 +16,7 @@ export interface Order {
   container_type_id: number;
   quantity: number;
   amount: number;
+  type?: number | string;
   is_walk_in: boolean;
   created_at: string;
 }
@@ -40,7 +41,9 @@ export interface OrderFilters {
 }
 
 const today = new Date().toLocaleDateString("en-CA");
-const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA");
+const thirtyDaysAgo = new Date(
+  Date.now() - 30 * 24 * 60 * 60 * 1000,
+).toLocaleDateString("en-CA");
 
 const DEFAULT_FORM: OrderFormData = {
   customer_id: null,
@@ -84,14 +87,19 @@ export function useOrders() {
     try {
       setLoading(true);
       setError(null);
+
+      // We now fetch from the view instead of the table
       const { data, error } = await supabase
-        .from("orders")
+        .from("view_order_summary")
         .select("*")
         .gte("transaction_date", filters.dateFrom)
         .lte("transaction_date", filters.dateTo)
         .order("transaction_date", { ascending: false });
 
       if (error) throw error;
+
+      // Map the view data to your existing Order interface
+      // Note: The view returns flat rows, which matches your current UI needs
       setOrders(data || []);
     } catch (err: any) {
       setError(err.message);
@@ -100,17 +108,26 @@ export function useOrders() {
     }
   }, [filters.dateFrom, filters.dateTo]);
 
-  useEffect(() => { fetchCustomers(); }, []);
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const filtered = orders.filter((o) => {
     const matchesSearch =
       filters.search === "" ||
       (o.is_walk_in && "walk-in".includes(filters.search.toLowerCase())) ||
-      (!o.is_walk_in && o.customer_id && customers.some(c => 
-        c.customer_id === o.customer_id && 
-        (`${c.first_name} ${c.last_name}`.toLowerCase().includes(filters.search.toLowerCase()))
-      ));
+      (!o.is_walk_in &&
+        o.customer_id &&
+        customers.some(
+          (c) =>
+            c.customer_id === o.customer_id &&
+            `${c.first_name} ${c.last_name}`
+              .toLowerCase()
+              .includes(filters.search.toLowerCase()),
+        ));
     const matchesType =
       filters.type === "all" || o.container_type_id === Number(filters.type);
     return matchesSearch && matchesType;
@@ -129,7 +146,7 @@ export function useOrders() {
       transaction_date: order.transaction_date,
       container_type_id: order.container_type_id,
       quantity: order.quantity,
-      is_walk_in: order.is_walk_in,
+      is_walk_in: order.is_walk_in ?? false,
       isNewCustomer: false,
       newFirstName: "",
       newLastName: "",
@@ -150,95 +167,83 @@ export function useOrders() {
       setSaving(true);
       setError(null);
 
+      // 1. Resolve Customer ID
       let customerId = form.customer_id;
-
       if (form.isNewCustomer && !form.is_walk_in) {
-        if (!form.newFirstName.trim() || !form.newLastName.trim()) {
-          setError("First and last name are required for new customers.");
-          return;
-        }
+        // FIX: Replace [...] with the actual object
         const { data: newCustomer, error: customerError } = await supabase
           .from("customers")
-          .insert([{
-            first_name: form.newFirstName.trim(),
-            last_name: form.newLastName.trim(),
-            contact_number: form.newContact.trim() || null,
-          }])
+          .insert([
+            {
+              first_name: form.newFirstName.trim(),
+              last_name: form.newLastName.trim(),
+              contact_number: form.newContact.trim() || null,
+            },
+          ])
           .select()
           .single();
 
         if (customerError) throw customerError;
         customerId = newCustomer.customer_id;
-        await fetchCustomers();
       }
 
-      const amount = form.quantity * 20;
-
-      // Check for existing order with same customer_id/walk-in status on same date
-      let query = supabase
-        .from("orders")
-        .select("*")
+      // 2. Upsert Transaction Header (The "Order" header)
+      // We try to find a transaction for this customer on this date
+      let { data: transaction } = await supabase
+        .from("container_transactions")
+        .select("transaction_id")
         .eq("transaction_date", form.transaction_date)
-        .eq("is_walk_in", form.is_walk_in);
+        .eq("customer_id", form.is_walk_in ? null : customerId)
+        .single();
 
-      if (form.is_walk_in) {
-        query = query.is("customer_id", null);
-      } else {
-        query = query.eq("customer_id", customerId);
+      let transactionId = transaction?.transaction_id;
+
+      if (!transactionId) {
+        // Create new transaction header
+        const { data: newTx, error: txError } = await supabase
+          .from("container_transactions")
+          .insert([
+            {
+              customer_id: form.is_walk_in ? null : customerId,
+              transaction_date: form.transaction_date,
+              is_walk_in: form.is_walk_in,
+            },
+          ])
+          .select()
+          .single();
+
+        if (txError) throw txError;
+        transactionId = newTx.transaction_id;
       }
 
-      const { data: existingOrders, error: fetchError } = await query;
+      // 3. Upsert Transaction Item (The "Order" details)
+      // We check if this container type already exists in this transaction
+      const { data: existingItem } = await supabase
+        .from("container_transaction_items")
+        .select("item_id, quantity")
+        .eq("transaction_id", transactionId)
+        .eq("container_type_id", form.container_type_id)
+        .single();
 
-      if (fetchError) throw fetchError;
-
-      const existingOrder = existingOrders && existingOrders.length > 0 
-        ? existingOrders.find(o => o.id !== editingOrder?.id) 
-        : null;
-
-      if (existingOrder) {
-        // Update existing order: increment quantity and recalculate amount
-        const newQuantity = existingOrder.quantity + form.quantity;
-        const newAmount = newQuantity * 20;
-
-        const { error: updateError } = await supabase
-          .from("orders")
-          .update({
-            quantity: newQuantity,
-            amount: newAmount,
-          })
-          .eq("id", existingOrder.id);
-
-        if (updateError) throw updateError;
-
-        // If we were editing a different order, delete it
-        if (editingOrder && editingOrder.id !== existingOrder.id) {
-          await supabase.from("orders").delete().eq("id", editingOrder.id);
-        }
+      if (existingItem) {
+        // Update existing row
+        await supabase
+          .from("container_transaction_items")
+          .update({ quantity: existingItem.quantity + form.quantity })
+          .eq("item_id", existingItem.item_id);
       } else {
-        // No existing order, create or update as normal
-        const payload = {
-          customer_id: form.is_walk_in ? null : customerId,
-          transaction_date: form.transaction_date,
-          container_type_id: form.container_type_id,
-          quantity: form.quantity,
-          amount,
-          is_walk_in: form.is_walk_in,
-        };
-
-        if (editingOrder) {
-          const { error } = await supabase
-            .from("orders")
-            .update(payload)
-            .eq("id", editingOrder.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase.from("orders").insert([payload]);
-          if (error) throw error;
-        }
+        // Insert new row
+        await supabase.from("container_transaction_items").insert([
+          {
+            transaction_id: transactionId,
+            container_type_id: form.container_type_id,
+            quantity: form.quantity,
+          },
+        ]);
       }
 
       closeModal();
-      fetchOrders();
+      fetchOrders(); // Note: Update this to fetch from your new join view
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -246,9 +251,14 @@ export function useOrders() {
     }
   }
 
-  async function deleteOrder(id: string) {
+  async function deleteOrder(item_id: string) {
     try {
-      const { error } = await supabase.from("orders").delete().eq("id", id);
+      // This deletes the specific item from the transaction
+      const { error } = await supabase
+        .from("container_transaction_items")
+        .delete()
+        .eq("item_id", item_id);
+
       if (error) throw error;
       fetchOrders();
     } catch (err: any) {
