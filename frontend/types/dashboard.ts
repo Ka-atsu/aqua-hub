@@ -31,8 +31,10 @@ export interface KpiMetric {
 }
 
 export interface ChartDataPoint {
-  label: string;
-  value: number;
+  date: string; // e.g., "Mon", "2026-06-01"
+  revenue: number; // Absolute dollar value
+  gallons: number; // Volumetric performance
+  returned: number; // Container return tracking
 }
 
 export interface TransactionSummary {
@@ -50,19 +52,43 @@ export interface CustomerContainerDebt {
   balance: number;
 }
 
+// export interface WaterDashboardData {
+//   revenueToday: KpiMetric;
+//   txToday: KpiMetric;
+//   activeCustomers: KpiMetric;
+//   containersOut: KpiMetric;
+//   gallonsToday: KpiMetric;
+//   revenueTrend: ChartDataPoint[];
+//   walkInSplit: { walkIn: number; delivery: number };
+//   recentTransactions: TransactionSummary[];
+//   followUpList: CustomerContainerDebt[];
+//   historicalTrends: ChartDataPoint[];
+//   alerts: DashboardAlert[];
+//   summary: DailySummary;
+// }
+
+// @/types/dashboard.ts
+
 export interface WaterDashboardData {
   revenueToday: KpiMetric;
   txToday: KpiMetric;
   activeCustomers: KpiMetric;
   containersOut: KpiMetric;
   gallonsToday: KpiMetric;
-  revenueTrend: ChartDataPoint[];
+  
+  // 1. ADD THIS:
+  historicalTrends: ChartDataPoint[]; 
+
+  // 2. DELETE OR COMMENT OUT THIS LINE:
+  // revenueTrend: { label: string; value: number }[]; 
+  
   walkInSplit: { walkIn: number; delivery: number };
-  recentTransactions: TransactionSummary[];
-  followUpList: CustomerContainerDebt[];
   alerts: DashboardAlert[];
-  summary: DailySummary;
+  summary: any; 
+  recentTransactions: any[];
+  followUpList: any[];
 }
+
 export interface DashboardAlert {
   id: string;
   type: "warning" | "success" | "info";

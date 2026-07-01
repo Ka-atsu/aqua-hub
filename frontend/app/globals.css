@@ -4,24 +4,22 @@
   /* Font */
   --font-sans: "Inter", "Poppins", "Nunito", sans-serif;
 
-  /* Crisp Off-White Palette */
-  --color-neu-base: #f0f3f6; 
-  --color-neu-highlight: #ffffff; 
-  --color-neu-shadow: #d1d9e6; 
-  --color-neu-alert: #e11d48; 
+  /* Ink Wash Palette*/
+  --color-ink-base: #F7F6F2;      /* Warm, paper-like off-white */
+  --color-ink-dark: #2A2B2E;      /* Main text and dark panels */
+  --color-ink-black: #1E1F22;     /* Heavy headings */
+  --color-ink-muted: #54575B;     /* Typewriter text & subtitles */
+  --color-ink-accent: #C84B31;    /* Rust/Orange accent borders */
 
-  /* Custom Neumorphic Shadows */
-  --shadow-neu-raised:
-    8px 8px 16px var(--color-neu-shadow),
-    -8px -8px 16px var(--color-neu-highlight);
-
-  --shadow-neu-pressed:
-    inset 4px 4px 8px var(--color-neu-shadow),
-    inset -4px -4px 8px var(--color-neu-highlight);
+  /* Clean, flat shadows replacing the muddy Neumorphism */
+  --shadow-ink-sm: 0 1px 2px 0 rgba(42, 43, 46, 0.05);
+  --shadow-ink-flat: 4px 4px 0px 0px rgba(42, 43, 46, 0.1);
 }
 
 /* Base background setup */
 body {
-  background-color: var(--color-neu-base);
-  color: #1e293b;
+  background-color: var(--color-ink-base);
+  color: var(--color-ink-dark);
+  /* Smooth scrolling for your anchor links! */
+  scroll-behavior: smooth; 
 }
