@@ -1,164 +1,61 @@
+// app/analytics/page.tsx
 "use client";
-import { useAnalytics, AnalyticsRange } from "@/hooks/useAnalytics";
-import { ChevronDown, TrendingUp, Droplets, ShoppingCart, Users, Package, RotateCcw } from "lucide-react";
 
-
-function StatCard({
-  label,
-  value,
-  sub,
-  accent = false,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-2xl p-5 flex flex-col gap-1 ${
-        accent ? "bg-gray-900 text-white" : "bg-white border border-gray-100"
-      }`}
-    >
-      <span
-        className={`text-xs font-bold uppercase tracking-widest ${
-          accent ? "text-gray-400" : "text-gray-400"
-        }`}
-      >
-        {label}
-      </span>
-      <span
-        className={`text-2xl font-extrabold tracking-tight ${
-          accent ? "text-white" : "text-gray-900"
-        }`}
-      >
-        {value}
-      </span>
-      {sub && (
-        <span
-          className={`text-xs font-semibold ${
-            accent ? "text-gray-400" : "text-gray-500"
-          }`}
-        >
-          {sub}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function Panel({
-  title,
-  children,
-  className = "",
-}: {
-  title: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`bg-white border border-gray-100 rounded-2xl p-6 ${className}`}>
-      <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-5">
-        {title}
-      </h2>
-      {children}
-    </div>
-  );
-}
-
-function BarChart<T extends { label: string }>({
-  data,
-  valueKey,
-  color = "#00D084",
-}: {
-  data: T[];
-  valueKey: keyof T;
-  color?: string;
-}) {
-  const values = data.map((d) => Number(d[valueKey]));
-  const max = Math.max(...values, 1);
-
-  return (
-    <div className="flex items-end gap-1 h-32 w-full">
-      {data.map((d, i) => {
-        const pct = (Number(d[valueKey]) / max) * 100;
-        return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-            <div
-              className="w-full rounded-t-sm transition-all duration-300"
-              style={{
-                height: `${Math.max(pct, 2)}%`,
-                backgroundColor: color,
-                opacity: 0.85,
-              }}
-            />
-            {/* Tooltip on hover */}
-            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-              {d.label}: {Number(d[valueKey]).toLocaleString()}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-
-function AxisLabels({ data }: { data: { label: string }[] }) {
-  const step = Math.ceil(data.length / 7);
-  return (
-    <div className="flex justify-between mt-1">
-      {data
-        .filter((_, i) => i % step === 0 || i === data.length - 1)
-        .map((d, i) => (
-          <span key={i} className="text-[9px] text-gray-400 font-semibold">
-            {d.label}
-          </span>
-        ))}
-    </div>
-  );
-}
-
-
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { AnalyticsRange } from "@/types/analytics";
+import { ChevronDown } from "lucide-react";
+import {
+  StatCard,
+  Panel,
+  BarChart,
+  AxisLabels,
+} from "@/components/analytics/AnalyticsUI";
 
 export default function AnalyticsPage() {
   const { data, loading, range, setRange } = useAnalytics();
 
+  // LOADING STATE
   if (loading || !data) {
     return (
-      <div className="h-screen bg-gray-50 flex items-center justify-center text-gray-500 font-medium animate-pulse">
-        Loading analytics...
+      <div className="h-screen bg-ink-base flex items-center justify-center text-ink-muted font-medium animate-pulse">
+        Loading analytics workspace...
       </div>
     );
   }
 
-  const rangeLabel =
-    range === "7days" ? "Last 7 Days" : range === "30days" ? "Last 30 Days" : "Last 90 Days";
+  const rangeLabels: Record<AnalyticsRange, string> = {
+    "7days": "Last 7 Days",
+    "30days": "Last 30 Days",
+    "90days": "Last 90 Days",
+  };
+
+  const currentRangeLabel = rangeLabels[range] || "Unknown Period";
 
   return (
-    <div className="h-screen bg-gray-50 text-gray-900 overflow-hidden flex flex-col">
+    <div className="h-screen bg-ink-base text-ink-dark overflow-hidden flex flex-col transition-colors duration-500">
       <main className="p-6 md:p-8 space-y-8 flex-1 overflow-y-auto">
-
         {/* HEADER */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tighter text-gray-900">
+            <h1 className="text-3xl font-extrabold tracking-tighter text-ink-black">
               Analytics
             </h1>
-            <p className="text-sm text-gray-500 font-medium">{rangeLabel}</p>
+            <p className="text-sm text-ink-muted font-medium">
+              {currentRangeLabel}
+            </p>
           </div>
 
           <div className="relative">
             <select
               value={range}
               onChange={(e) => setRange(e.target.value as AnalyticsRange)}
-              className="appearance-none bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold px-4 py-2.5 pr-10 cursor-pointer focus:ring-2 focus:ring-gray-900 outline-none"
+              className="appearance-none bg-white border border-ink-dark/10 text-ink-dark rounded-xl text-sm font-semibold px-4 py-2.5 pr-10 cursor-pointer focus:ring-2 focus:ring-ink-accent outline-none shadow-ink-sm transition-shadow"
             >
               <option value="7days">Last 7 Days</option>
               <option value="30days">Last 30 Days</option>
               <option value="90days">Last 90 Days</option>
             </select>
-            <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3.5 pointer-events-none" />
+            <ChevronDown className="w-4 h-4 text-ink-muted absolute right-3 top-3.5 pointer-events-none" />
           </div>
         </header>
 
@@ -178,7 +75,7 @@ export default function AnalyticsPage() {
           <StatCard
             label="Transactions"
             value={data.totalTransactions.toLocaleString()}
-            sub={rangeLabel}
+            sub={currentRangeLabel}
           />
           <StatCard
             label="Customers"
@@ -199,14 +96,17 @@ export default function AnalyticsPage() {
 
         {/* CHARTS ROW */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
           {/* Revenue Trend */}
           <Panel title="Revenue Trend" className="lg:col-span-2">
             {data.dailyTrend.length === 0 ? (
-              <p className="text-sm text-gray-400">No data for this period.</p>
+              <p className="text-sm text-ink-muted">No data for this period.</p>
             ) : (
               <>
-                <BarChart data={data.dailyTrend} valueKey="revenue" color="#00D084" />
+                <BarChart
+                  data={data.dailyTrend}
+                  valueKey="revenue"
+                  color="#00D084"
+                />
                 <AxisLabels data={data.dailyTrend} />
               </>
             )}
@@ -221,17 +121,22 @@ export default function AnalyticsPage() {
                 return (
                   <div key={t.type}>
                     <div className="flex justify-between mb-1">
-                      <span className="text-sm font-bold text-gray-800">{t.type}</span>
-                      <span className="text-sm font-bold text-gray-500">{pct}%</span>
+                      <span className="text-sm font-bold text-ink-black">
+                        {t.type}
+                      </span>
+                      <span className="text-sm font-bold text-ink-muted">
+                        {pct}%
+                      </span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div className="w-full bg-ink-dark/5 rounded-full h-2">
                       <div
                         className="h-2 rounded-full bg-[#00D084] transition-all duration-500"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-400 mt-1 font-semibold">
-                      {t.count} orders · {t.gallons} gal · ₱{t.revenue.toLocaleString()}
+                    <p className="text-xs text-ink-muted mt-1 font-semibold">
+                      {t.count} orders · {t.gallons} gal · ₱
+                      {t.revenue.toLocaleString()}
                     </p>
                   </div>
                 );
@@ -243,10 +148,14 @@ export default function AnalyticsPage() {
         {/* GALLONS TREND */}
         <Panel title="Gallons Delivered per Day">
           {data.dailyTrend.length === 0 ? (
-            <p className="text-sm text-gray-400">No data for this period.</p>
+            <p className="text-sm text-ink-muted">No data for this period.</p>
           ) : (
             <>
-              <BarChart data={data.dailyTrend} valueKey="gallons" color="#0A4C5A" />
+              <BarChart
+                data={data.dailyTrend}
+                valueKey="gallons"
+                color="#0A4C5A"
+              />
               <AxisLabels data={data.dailyTrend} />
             </>
           )}
@@ -254,14 +163,13 @@ export default function AnalyticsPage() {
 
         {/* BOTTOM ROW */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
-
           {/* Top Customers */}
           <Panel title="Top Customers by Revenue">
             {data.topCustomers.length === 0 ? (
-              <p className="text-sm text-gray-400">No customer data found.</p>
+              <p className="text-sm text-ink-muted">No customer data found.</p>
             ) : (
               <div className="space-y-3">
-                <div className="grid grid-cols-12 text-[10px] font-bold text-gray-400 uppercase tracking-widest pb-2 border-b border-gray-100">
+                <div className="grid grid-cols-12 text-[10px] font-bold text-ink-muted uppercase tracking-widest pb-2 border-b border-ink-dark/5">
                   <div className="col-span-1">#</div>
                   <div className="col-span-5">Customer</div>
                   <div className="col-span-2 text-center">Orders</div>
@@ -271,24 +179,26 @@ export default function AnalyticsPage() {
                 {data.topCustomers.map((c, i) => (
                   <div
                     key={c.id}
-                    className="grid grid-cols-12 items-center py-2 hover:bg-gray-50 rounded-lg px-1 transition-colors"
+                    className="grid grid-cols-12 items-center py-2 hover:bg-ink-dark/5 rounded-lg px-1 transition-colors"
                   >
-                    <div className="col-span-1 text-xs font-bold text-gray-300">
+                    <div className="col-span-1 text-xs font-bold text-ink-muted">
                       {i + 1}
                     </div>
                     <div className="col-span-5">
-                      <p className="text-sm font-bold text-gray-900 truncate">{c.name}</p>
-                      <p className="text-[10px] text-gray-400 font-semibold">
+                      <p className="text-sm font-bold text-ink-black truncate">
+                        {c.name}
+                      </p>
+                      <p className="text-[10px] text-ink-muted font-semibold">
                         ₱{Math.round(c.avgOrderValue).toLocaleString()} avg
                       </p>
                     </div>
-                    <div className="col-span-2 text-center text-sm font-bold text-gray-600">
+                    <div className="col-span-2 text-center text-sm font-bold text-ink-dark">
                       {c.orderCount}
                     </div>
-                    <div className="col-span-2 text-center text-sm font-bold text-gray-600">
+                    <div className="col-span-2 text-center text-sm font-bold text-ink-dark">
                       {c.totalGallons}
                     </div>
-                    <div className="col-span-2 text-right text-sm font-bold text-gray-900">
+                    <div className="col-span-2 text-right text-sm font-bold text-ink-black">
                       ₱{c.totalSpend.toLocaleString()}
                     </div>
                   </div>
@@ -300,7 +210,9 @@ export default function AnalyticsPage() {
           {/* Container Offenders */}
           <Panel title="Unreturned Containers — Top Offenders">
             {data.worstOffenders.length === 0 ? (
-              <p className="text-sm text-gray-400">All containers accounted for.</p>
+              <p className="text-sm text-ink-muted">
+                All containers accounted for.
+              </p>
             ) : (
               <div className="space-y-3">
                 {data.worstOffenders.map((c, i) => {
@@ -309,15 +221,17 @@ export default function AnalyticsPage() {
                   return (
                     <div key={i} className="flex items-center gap-4">
                       <div className="w-28 shrink-0">
-                        <p className="text-sm font-bold text-gray-900 truncate">{c.name}</p>
+                        <p className="text-sm font-bold text-ink-black truncate">
+                          {c.name}
+                        </p>
                         {c.lastSeen && (
-                          <p className="text-[10px] text-gray-400 font-semibold">
+                          <p className="text-[10px] text-ink-muted font-semibold">
                             Updated {c.lastSeen}
                           </p>
                         )}
                       </div>
                       <div className="flex-1">
-                        <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="w-full bg-ink-dark/5 rounded-full h-2">
                           <div
                             className="h-2 rounded-full bg-orange-400 transition-all duration-500"
                             style={{ width: `${pct}%` }}
@@ -333,7 +247,6 @@ export default function AnalyticsPage() {
               </div>
             )}
           </Panel>
-
         </div>
       </main>
     </div>
